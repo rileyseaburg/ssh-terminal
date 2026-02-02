@@ -10,13 +10,6 @@ on:
       - 'src-tauri/**'
       - 'src-ui/**'
       - '.github/workflows/build-ios.yml'
-  pull_request:
-    branches:
-      - main
-      - master
-    paths:
-      - 'src-tauri/**'
-      - 'src-ui/**'
   workflow_dispatch:
     inputs:
       install_to_device:
@@ -29,10 +22,6 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  # ===================
-  # iOS - Self-hosted on local Mac
-  # Uses existing Xcode signing (riley@spotlessbinco.com)
-  # ===================
   build-ios:
     runs-on: [self-hosted, macOS, ios-builder]
     steps:
@@ -42,156 +31,59 @@ jobs:
           submodules: recursive
           clean: true
 
-      - name: Setup Xcode
+      - name: Setup environment
         run: |
           xcodebuild -version
           swift --version
           xcrun --version
+          source $HOME/.cargo/env
+          export PATH="/opt/homebrew/bin:$HOME/.cargo/bin:$PATH"
 
-      - name: Install Rust iOS targets
+      - name: Install dependencies
         run: |
+          source $HOME/.cargo/env
+          export PATH="/opt/homebrew/bin:$HOME/.cargo/bin:$PATH"
           rustup target add aarch64-apple-ios
-          rustup target add aarch64-apple-ios-sim
-          rustup target add x86_64-apple-ios
-          cargo install cargo-lipo 2>/dev/null || true
           cargo install tauri-cli 2>/dev/null || true
+          if ! command -v xcodegen &> /dev/null; then
+            brew install xcodegen
+          fi
 
-      - name: Unlock Keychain for codesign
+      - name: Unlock Keychain
         run: |
           security unlock-keychain -p "${{ secrets.MACOS_KEYCHAIN_PASSWORD }}" ~/Library/Keychains/login.keychain-db
           security set-keychain-settings -t 3600 ~/Library/Keychains/login.keychain-db
 
-      - name: Install Node.js dependencies
-        run: |
-          if [ -f "package.json" ]; then
-            npm install
-          fi
-
-      - name: Install XcodeGen
-        run: |
-          export PATH="/opt/homebrew/bin:$PATH"
-          if ! command -v xcodegen &> /dev/null; then
-            brew install xcodegen
-          fi
-          xcodegen --version
-
-      - name: Generate app icons
+      - name: Generate icon
         working-directory: src-tauri
         run: |
-          # Generate icons using Tauri icon command if we have a source image
+          mkdir -p icons
           if [ ! -f icons/icon.png ]; then
-            mkdir -p icons
-            # Try Python with PIL first
-            python3 << 'PYEOF'
-from PIL import Image
-img = Image.new('RGBA', (1024, 1024), (30, 30, 30, 255))
-img.save('icons/icon.png')
-PYEOF
-            if [ ! -f icons/icon.png ]; then
-              # Fallback: use ImageMagick
-              convert -size 1024x1024 xc:'#1e1e1e' icons/icon.png 2>/dev/null || true
-            fi
-            if [ ! -f icons/icon.png ]; then
-              # Last resort: download a simple PNG
-              curl -sL "https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png" -o icons/icon.png 2>/dev/null || true
-            fi
+            python3 -c "from PIL import Image; img = Image.new('RGBA', (1024, 1024), (30, 30, 30, 255)); img.save('icons/icon.png')" 2>/dev/null || \
+            convert -size 1024x1024 xc:'#1e1e1e' icons/icon.png 2>/dev/null || \
+            echo "Icon creation skipped"
           fi
           ls -la icons/
 
-      - name: Build iOS app with Tauri
+      - name: Build iOS app
         working-directory: src-tauri
         env:
           APPLE_DEVELOPMENT_TEAM: "J9YRM3U37D"
-          DEVELOPMENT_TEAM: "J9YRM3U37D"
-          CODE_SIGN_STYLE: Automatic
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           source $HOME/.cargo/env
           export PATH="/opt/homebrew/bin:$HOME/.cargo/bin:$PATH"
           export APPLE_DEVELOPMENT_TEAM="J9YRM3U37D"
-          # Initialize iOS project if not exists
           if [ ! -d "gen/apple" ]; then
-            echo "Initializing iOS project..."
             cargo tauri ios init
           fi
-          
-          # Build for iOS device
           cargo tauri ios build --target aarch64
 
-      - name: Archive iOS app
+      - name: Install to iPhone
+        if: github.event.inputs.install_to_device != 'false'
         run: |
-          # Find the built app
           APP_PATH=$(find src-tauri/gen/apple -name "*.app" -type d | head -1)
           if [ -n "$APP_PATH" ]; then
-            echo "Found app: $APP_PATH"
-            
-            # Create archive
-            xcodebuild -create-xcarchive \
-              -archivePath build/SSH-Terminal.xcarchive \
-              -scheme SSH-Terminal \
-              -destination 'generic/platform=iOS' \
-              || echo "Archive creation skipped - using app bundle directly"
-            
-            # Copy to build directory
-            mkdir -p build/ios
-            cp -R "$APP_PATH" build/ios/ || true
-          else
-            echo "No .app found"
-            exit 1
-          fi
-
-      - name: Create IPA
-        working-directory: build/ios
-        run: |
-          if [ -d "SSH-Terminal.app" ]; then
-            # Create Payload directory
-            mkdir -p Payload
-            cp -R SSH-Terminal.app Payload/
-            
-            # Create IPA
-            zip -r SSH-Terminal.ipa Payload
-            rm -rf Payload
-            
-            echo "IPA created: SSH-Terminal.ipa"
-          fi
-
-      - name: Upload iOS app
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-app-ssh-terminal
-          path: |
-            build/ios/**/*.app
-            build/ios/**/*.ipa
-            src-tauri/gen/apple/build/**/*.app
-          if-no-files-found: warn
-
-      - name: Install to connected iPhone
-        if: ${{ github.event.inputs.install_to_device != 'false' }}
-        run: |
-          # Find the built app
-          APP_PATH=$(find build/ios -name "*.app" -type d | head -1)
-          if [ -n "$APP_PATH" ]; then
-            echo "Found app: $APP_PATH"
-            # Target: Evolving Software-5G (iPhone 13 Pro Max)
+            echo "Installing to iPhone..."
             DEVICE_ID="4745B27B-2B68-5164-A053-B869B07EE2CA"
-            echo "Installing to Evolving Software-5G (iPhone 13 Pro Max)..."
-            xcrun devicectl device install app --device "$DEVICE_ID" "$APP_PATH"
-          else
-            echo "No .app found to install"
-          fi
-        continue-on-error: true
-
-      - name: Build Summary
-        run: |
-          echo "### iOS Build Complete" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**App:** SSH Terminal" >> $GITHUB_STEP_SUMMARY
-          echo "**Platform:** iOS (Tauri)" >> $GITHUB_STEP_SUMMARY
-          echo "**Architecture:** aarch64" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "#### Artifacts" >> $GITHUB_STEP_SUMMARY
-          echo "- iOS App Bundle (.app)" >> $GITHUB_STEP_SUMMARY
-          if [ -f "build/ios/SSH-Terminal.ipa" ]; then
-            echo "- IPA Package (.ipa)" >> $GITHUB_STEP_SUMMARY
+            xcrun devicectl device install app --device "$DEVICE_ID" "$APP_PATH" || echo "Install may require device to be unlocked"
           fi
