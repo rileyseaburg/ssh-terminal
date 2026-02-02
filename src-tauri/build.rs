@@ -1,8 +1,8 @@
 fn main() {
     // Link system zlib - required for libssh2 compression support on iOS
-    // The 'z' library is the system zlib on Apple platforms
-    let target = std::env::var("TARGET").unwrap_or_default();
-    if target.contains("apple") || target.contains("ios") {
+    // Use CARGO_CFG_TARGET_OS to detect cross-compilation targets
+    let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
+    if target_os == "ios" || target_os == "macos" {
         println!("cargo:rustc-link-lib=z");
     }
     
