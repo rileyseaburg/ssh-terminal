@@ -235,7 +235,7 @@ async fn generate_ssh_key(
     let fingerprint = public_key.fingerprint(ssh_key::HashAlg::Sha256);
     
     Ok(serde_json::json!({
-        "private_key": private_key_pem,
+        "private_key": private_key_pem.to_string(),
         "public_key": public_key_openssh,
         "fingerprint": fingerprint.to_string(),
         "algorithm": key_type,
