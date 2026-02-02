@@ -73,10 +73,12 @@ jobs:
         working-directory: src-tauri
         env:
           APPLE_DEVELOPMENT_TEAM: "J9YRM3U37D"
+          OTHER_LDFLAGS: "-lz"
         run: |
           source $HOME/.cargo/env
           export PATH="/opt/homebrew/bin:$HOME/.cargo/bin:$PATH"
           export APPLE_DEVELOPMENT_TEAM="J9YRM3U37D"
+          export OTHER_LDFLAGS="-lz"
           if [ ! -d "gen/apple" ]; then
             cargo tauri ios init
           fi
