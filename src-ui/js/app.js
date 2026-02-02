@@ -43,14 +43,32 @@ class SSHTerminalApp {
             this.togglePanel('settings');
         });
         
-        document.getElementById('btn-new-session').addEventListener('click', () => {
-            this.showConnectionPanel();
-        });
+        const newSessionBtn = document.getElementById('btn-new-session');
+        if (newSessionBtn) {
+            newSessionBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('New session button clicked');
+                this.showConnectionPanel();
+            });
+            console.log('New session button bound successfully');
+        } else {
+            console.error('New session button not found!');
+        }
 
         // Tab bar
-        document.getElementById('btn-add-tab').addEventListener('click', () => {
-            this.createNewTab();
-        });
+        const addTabBtn = document.getElementById('btn-add-tab');
+        if (addTabBtn) {
+            addTabBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Add tab button clicked');
+                this.createNewTab();
+            });
+            console.log('Add tab button bound successfully');
+        } else {
+            console.error('Add tab button not found!');
+        }
 
         // Connection panel
         document.getElementById('btn-close-connection').addEventListener('click', () => {
@@ -111,7 +129,9 @@ class SSHTerminalApp {
     }
 
     createNewTab(sessionId = null) {
+        console.log('Creating new tab...');
         const tabId = `tab-${++this.tabCounter}`;
+        console.log('Tab ID:', tabId);
         
         // Create tab element
         const tab = document.createElement('div');
