@@ -75,24 +75,6 @@ jobs:
           fi
           xcodegen --version
 
-      - name: Generate app icons
-        run: |
-          cd src-tauri/icons
-          # Create a simple 1024x1024 icon from SVG if needed
-          if [ ! -f icon.png ]; then
-            if command -v rsvg-convert &> /dev/null; then
-              rsvg-convert -w 1024 -h 1024 32x32.svg -o icon.png
-            elif command -v convert &> /dev/null; then
-              convert -background none 32x32.svg -resize 1024x1024 icon.png
-            else
-              # Create a placeholder icon using sips on macOS
-              echo "Creating placeholder icon..."
-              # Copy SVG as a fallback (Tauri will handle it)
-              cp 32x32.svg icon.png
-            fi
-          fi
-          ls -la
-
       - name: Build iOS app with Tauri
         working-directory: src-tauri
         env:
