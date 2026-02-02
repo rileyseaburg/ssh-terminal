@@ -13,6 +13,7 @@ class SSHTerminalApp {
     }
 
     async init() {
+        alert('App initializing...');
         this.cacheDOMElements();
         this.bindEvents();
         this.loadSettings();
@@ -21,6 +22,9 @@ class SSHTerminalApp {
         if (window.__TAURI__) {
             this.version = await window.__TAURI__.invoke('get_app_version');
             document.getElementById('app-version').textContent = `v${this.version}`;
+            alert('Tauri initialized!');
+        } else {
+            alert('WARNING: Tauri not available!');
         }
     }
 
@@ -48,12 +52,14 @@ class SSHTerminalApp {
             newSessionBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                alert('New session clicked!');
                 console.log('New session button clicked');
                 this.showConnectionPanel();
             });
             console.log('New session button bound successfully');
         } else {
             console.error('New session button not found!');
+            alert('ERROR: New session button not found!');
         }
 
         // Tab bar
@@ -62,12 +68,14 @@ class SSHTerminalApp {
             addTabBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                alert('Add tab clicked!');
                 console.log('Add tab button clicked');
                 this.createNewTab();
             });
             console.log('Add tab button bound successfully');
         } else {
             console.error('Add tab button not found!');
+            alert('ERROR: Add tab button not found!');
         }
 
         // Connection panel
