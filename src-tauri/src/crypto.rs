@@ -3,41 +3,62 @@ use aes_gcm::{
     Aes256Gcm, Nonce,
 };
 use anyhow::{Context, Result};
-use keyring::Entry;
 use rand::Rng;
+use std::fs;
+use std::path::PathBuf;
 
-const KEYRING_SERVICE: &str = "ssh-terminal-app";
-const KEYRING_USERNAME: &str = "encryption-key";
 const NONCE_SIZE: usize = 12;
+const KEY_FILE: &str = "encryption_key.dat";
 
 pub struct SecureStorage {
     cipher: Aes256Gcm,
+    storage_dir: PathBuf,
 }
 
 impl SecureStorage {
     pub fn new() -> Result<Self> {
-        let key = Self::get_or_create_key()?;
+        // Get app support directory for iOS/macOS
+        let storage_dir = Self::get_storage_dir()?;
+        fs::create_dir_all(&storage_dir)?;
+        
+        let key = Self::get_or_create_key(&storage_dir)?;
         let cipher = Aes256Gcm::new_from_slice(&key)
             .map_err(|_| anyhow::anyhow!("Failed to create cipher: invalid key length"))?;
         
-        Ok(Self { cipher })
+        Ok(Self { cipher, storage_dir })
     }
 
-    fn get_or_create_key() -> Result<Vec<u8>> {
-        let entry = Entry::new(KEYRING_SERVICE, KEYRING_USERNAME)?;
+    fn get_storage_dir() -> Result<PathBuf> {
+        // Use app's document directory on iOS, or home directory on other platforms
+        #[cfg(target_os = "ios")]
+        {
+            // On iOS, use the app's documents directory
+            if let Ok(documents) = std::env::var("HOME") {
+                return Ok(PathBuf::from(documents).join("Documents").join(".ssh-terminal"));
+            }
+        }
         
-        match entry.get_password() {
-            Ok(key_b64) => {
-                let key = base64::decode(&key_b64)
-                    .map_err(|e| anyhow::anyhow!("Failed to decode key: {}", e))?;
-                Ok(key)
-            }
-            Err(_) => {
-                let key: Vec<u8> = (0..32).map(|_| rand::thread_rng().gen()).collect();
-                let key_b64 = base64::encode(&key);
-                entry.set_password(&key_b64)?;
-                Ok(key)
-            }
+        // Fallback to home directory/.ssh-terminal
+        let home = dirs::home_dir()
+            .ok_or_else(|| anyhow::anyhow!("Could not determine home directory"))?;
+        Ok(home.join(".ssh-terminal"))
+    }
+
+    fn get_or_create_key(storage_dir: &PathBuf) -> Result<Vec<u8>> {
+        let key_file = storage_dir.join(KEY_FILE);
+        
+        if key_file.exists() {
+            // Read existing key
+            let key_b64 = fs::read_to_string(&key_file)?;
+            let key = base64::decode(&key_b64)
+                .map_err(|e| anyhow::anyhow!("Failed to decode key: {}", e))?;
+            Ok(key)
+        } else {
+            // Generate new key
+            let key: Vec<u8> = (0..32).map(|_| rand::thread_rng().gen()).collect();
+            let key_b64 = base64::encode(&key);
+            fs::write(&key_file, key_b64)?;
+            Ok(key)
         }
     }
 
@@ -75,29 +96,38 @@ impl SecureStorage {
     }
 
     pub fn store(&self, key: &str, value: &str) -> Result<()> {
-        let entry = Entry::new(KEYRING_SERVICE, key)?;
+        let file_path = self.storage_dir.join(format!("{}.enc", key));
         let encrypted = self.encrypt(value)?;
-        entry.set_password(&encrypted)?;
+        fs::write(&file_path, encrypted)?;
         Ok(())
     }
 
     pub fn retrieve(&self, key: &str) -> Result<String> {
-        let entry = Entry::new(KEYRING_SERVICE, key)?;
-        let encrypted = entry.get_password()?;
+        let file_path = self.storage_dir.join(format!("{}.enc", key));
+        let encrypted = fs::read_to_string(&file_path)?;
         self.decrypt(&encrypted)
     }
 
     pub fn delete(&self, key: &str) -> Result<()> {
-        let entry = Entry::new(KEYRING_SERVICE, key)?;
-        entry.delete_password()?;
+        let file_path = self.storage_dir.join(format!("{}.enc", key));
+        fs::remove_file(&file_path)?;
         Ok(())
     }
 
     pub fn list_keys(&self) -> Result<Vec<String>> {
-        // Note: keyring doesn't provide a direct way to list keys
-        // This is a limitation - we'd need to track keys separately
-        // For now, return an empty list
-        Ok(vec![])
+        let mut keys = Vec::new();
+        
+        if let Ok(entries) = fs::read_dir(&self.storage_dir) {
+            for entry in entries.flatten() {
+                if let Some(name) = entry.file_name().to_str() {
+                    if name.ends_with(".enc") {
+                        keys.push(name.trim_end_matches(".enc").to_string());
+                    }
+                }
+            }
+        }
+        
+        Ok(keys)
     }
 }
 
