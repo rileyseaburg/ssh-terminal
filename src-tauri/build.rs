@@ -6,6 +6,6 @@ fn main() {
         println!("cargo:rustc-link-lib=z");
     }
     
-    // Generate mobile assets for iOS/Android
-    tauri_build::mobile()
+    // Standard Tauri build
+    tauri_build::build()
 }
