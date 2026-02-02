@@ -73,17 +73,15 @@ jobs:
         working-directory: src-tauri
         env:
           APPLE_DEVELOPMENT_TEAM: "J9YRM3U37D"
-          LIBSSH2_NO_ZLIB: "1"
         run: |
           source $HOME/.cargo/env
           export PATH="/opt/homebrew/bin:$HOME/.cargo/bin:$PATH"
           export APPLE_DEVELOPMENT_TEAM="J9YRM3U37D"
-          # Disable zlib in libssh2 to avoid linker issues
-          export LIBSSH2_NO_ZLIB=1
           if [ ! -d "gen/apple" ]; then
             cargo tauri ios init
           fi
-          cargo tauri ios build --target aarch64
+          # Build with xcodebuild flags to link zlib
+          cargo tauri ios build --target aarch64 -- -- OTHER_LDFLAGS="-lz"
 
       - name: Install to iPhone
         if: github.event.inputs.install_to_device != 'false'
