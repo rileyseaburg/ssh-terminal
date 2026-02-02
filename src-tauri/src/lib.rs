@@ -302,10 +302,20 @@ async fn delete_ssh_key(
 pub fn run() {
     env_logger::init();
     
+    // Initialize secure storage with error handling
+    let secure_storage = match SecureStorage::new() {
+        Ok(storage) => storage,
+        Err(e) => {
+            eprintln!("Warning: Failed to initialize secure storage: {}. Using fallback.", e);
+            // Create a dummy storage that will fail gracefully
+            SecureStorage::new_dummy()
+        }
+    };
+    
     let app_state = AppState {
         ssh_manager: Arc::new(Mutex::new(SshManager::new())),
         session_manager: Arc::new(Mutex::new(SessionManager::new())),
-        secure_storage: Arc::new(Mutex::new(SecureStorage::new().expect("Failed to initialize secure storage"))),
+        secure_storage: Arc::new(Mutex::new(secure_storage)),
     };
 
     tauri::Builder::default()

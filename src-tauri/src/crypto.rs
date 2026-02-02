@@ -11,8 +11,9 @@ const NONCE_SIZE: usize = 12;
 const KEY_FILE: &str = "encryption_key.dat";
 
 pub struct SecureStorage {
-    cipher: Aes256Gcm,
-    storage_dir: PathBuf,
+    cipher: Option<Aes256Gcm>,
+    storage_dir: Option<PathBuf>,
+    dummy_mode: bool,
 }
 
 impl SecureStorage {
@@ -25,7 +26,19 @@ impl SecureStorage {
         let cipher = Aes256Gcm::new_from_slice(&key)
             .map_err(|_| anyhow::anyhow!("Failed to create cipher: invalid key length"))?;
         
-        Ok(Self { cipher, storage_dir })
+        Ok(Self { 
+            cipher: Some(cipher), 
+            storage_dir: Some(storage_dir),
+            dummy_mode: false,
+        })
+    }
+    
+    pub fn new_dummy() -> Self {
+        Self {
+            cipher: None,
+            storage_dir: None,
+            dummy_mode: true,
+        }
     }
 
     fn get_storage_dir() -> Result<PathBuf> {
@@ -63,10 +76,15 @@ impl SecureStorage {
     }
 
     pub fn encrypt(&self, plaintext: &str) -> Result<String> {
+        if self.dummy_mode {
+            return Err(anyhow::anyhow!("Storage not available"));
+        }
+        
+        let cipher = self.cipher.as_ref().ok_or_else(|| anyhow::anyhow!("Cipher not initialized"))?;
         let nonce_bytes: Vec<u8> = (0..NONCE_SIZE).map(|_| rand::thread_rng().gen()).collect();
         let nonce = Nonce::from_slice(&nonce_bytes);
         
-        let ciphertext = self.cipher
+        let ciphertext = cipher
             .encrypt(nonce, plaintext.as_bytes())
             .map_err(|e| anyhow::anyhow!("Encryption failed: {:?}", e))?;
         
@@ -77,6 +95,11 @@ impl SecureStorage {
     }
 
     pub fn decrypt(&self, ciphertext_b64: &str) -> Result<String> {
+        if self.dummy_mode {
+            return Err(anyhow::anyhow!("Storage not available"));
+        }
+        
+        let cipher = self.cipher.as_ref().ok_or_else(|| anyhow::anyhow!("Cipher not initialized"))?;
         let data = base64::decode(ciphertext_b64)
             .map_err(|e| anyhow::anyhow!("Base64 decode failed: {}", e))?;
         
@@ -87,7 +110,7 @@ impl SecureStorage {
         let (nonce_bytes, ciphertext) = data.split_at(NONCE_SIZE);
         let nonce = Nonce::from_slice(nonce_bytes);
         
-        let plaintext = self.cipher
+        let plaintext = cipher
             .decrypt(nonce, ciphertext)
             .map_err(|e| anyhow::anyhow!("Decryption failed: {:?}", e))?;
         
@@ -96,32 +119,53 @@ impl SecureStorage {
     }
 
     pub fn store(&self, key: &str, value: &str) -> Result<()> {
-        let file_path = self.storage_dir.join(format!("{}.enc", key));
+        if self.dummy_mode {
+            return Err(anyhow::anyhow!("Storage not available in dummy mode"));
+        }
+        
+        let storage_dir = self.storage_dir.as_ref().ok_or_else(|| anyhow::anyhow!("Storage directory not initialized"))?;
+        let file_path = storage_dir.join(format!("{}.enc", key));
         let encrypted = self.encrypt(value)?;
         fs::write(&file_path, encrypted)?;
         Ok(())
     }
 
     pub fn retrieve(&self, key: &str) -> Result<String> {
-        let file_path = self.storage_dir.join(format!("{}.enc", key));
+        if self.dummy_mode {
+            return Err(anyhow::anyhow!("Storage not available in dummy mode"));
+        }
+        
+        let storage_dir = self.storage_dir.as_ref().ok_or_else(|| anyhow::anyhow!("Storage directory not initialized"))?;
+        let file_path = storage_dir.join(format!("{}.enc", key));
         let encrypted = fs::read_to_string(&file_path)?;
         self.decrypt(&encrypted)
     }
 
     pub fn delete(&self, key: &str) -> Result<()> {
-        let file_path = self.storage_dir.join(format!("{}.enc", key));
+        if self.dummy_mode {
+            return Err(anyhow::anyhow!("Storage not available in dummy mode"));
+        }
+        
+        let storage_dir = self.storage_dir.as_ref().ok_or_else(|| anyhow::anyhow!("Storage directory not initialized"))?;
+        let file_path = storage_dir.join(format!("{}.enc", key));
         fs::remove_file(&file_path)?;
         Ok(())
     }
 
     pub fn list_keys(&self) -> Result<Vec<String>> {
+        if self.dummy_mode {
+            return Ok(vec![]);
+        }
+        
         let mut keys = Vec::new();
         
-        if let Ok(entries) = fs::read_dir(&self.storage_dir) {
-            for entry in entries.flatten() {
-                if let Some(name) = entry.file_name().to_str() {
-                    if name.ends_with(".enc") {
-                        keys.push(name.trim_end_matches(".enc").to_string());
+        if let Some(ref storage_dir) = self.storage_dir {
+            if let Ok(entries) = fs::read_dir(storage_dir) {
+                for entry in entries.flatten() {
+                    if let Some(name) = entry.file_name().to_str() {
+                        if name.ends_with(".enc") {
+                            keys.push(name.trim_end_matches(".enc").to_string());
+                        }
                     }
                 }
             }
