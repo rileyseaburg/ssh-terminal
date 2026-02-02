@@ -1,90 +1,43 @@
 {
+  "productName": "SSH Terminal",
+  "version": "0.1.0",
+  "identifier": "com.sshterminal.app",
   "build": {
     "beforeBuildCommand": "",
     "beforeDevCommand": "",
-    "devPath": "../src-ui",
-    "distDir": "../src-ui",
-    "withGlobalTauri": true
+    "frontendDist": "../src-ui",
+    "devUrl": "http://localhost:1420"
   },
-  "tauri": {
-    "allowlist": {
-      "all": false,
-      "shell": {
-        "all": false,
-        "open": true
-      },
-      "window": {
-        "all": true,
-        "center": true,
-        "close": true,
-        "create": true,
-        "hide": true,
-        "maximize": true,
-        "minimize": true,
-        "print": true,
-        "requestUserAttention": true,
-        "setAlwaysOnTop": true,
-        "setClosable": true,
-        "setContentProtected": true,
-        "setCursorGrab": true,
-        "setCursorVisible": true,
-        "setDecorations": true,
-        "setFocus": true,
-        "setFullscreen": true,
-        "setIcon": true,
-        "setMaxSize": true,
-        "setMaximizable": true,
-        "setMinSize": true,
-        "setMinimizable": true,
-        "setPosition": true,
-        "setResizable": true,
-        "setSize": true,
-        "setSkipTaskbar": true,
-        "setTitle": true,
-        "show": true,
-        "startDragging": true,
-        "unmaximize": true,
-        "unminimize": true
-      }
+  "bundle": {
+    "active": true,
+    "category": "DeveloperTool",
+    "copyright": "",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "longDescription": "A secure, cross-platform SSH terminal application with tabbed interface, session management, and customizable themes.",
+    "shortDescription": "SSH Terminal Application",
+    "targets": "all",
+    "macOS": {
+      "entitlements": null,
+      "exceptionDomain": "",
+      "frameworks": [],
+      "providerShortName": null,
+      "signingIdentity": null
     },
-    "bundle": {
-      "active": true,
-      "category": "DeveloperTool",
-      "copyright": "",
-      "deb": {
-        "depends": []
-      },
-      "externalBin": [],
-      "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
-      ],
-      "identifier": "com.sshterminal.app",
-      "longDescription": "A secure, cross-platform SSH terminal application with tabbed interface, session management, and customizable themes.",
-      "macOS": {
-        "entitlements": null,
-        "exceptionDomain": "",
-        "frameworks": [],
-        "providerShortName": null,
-        "signingIdentity": null
-      },
-      "resources": [],
-      "shortDescription": "SSH Terminal Application",
-      "targets": "all",
-      "windows": {
-        "certificateThumbprint": null,
-        "digestAlgorithm": "sha256",
-        "timestampUrl": ""
-      }
-    },
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": ""
+    }
+  },
+  "app": {
     "security": {
       "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data:; connect-src 'self' ws: wss:;"
-    },
-    "updater": {
-      "active": false
     },
     "windows": [
       {
@@ -99,5 +52,13 @@
         "decorations": true
       }
     ]
+  },
+  "plugins": {
+    "shell": {
+      "open": true
+    },
+    "updater": {
+      "active": false
+    }
   }
 }
