@@ -33,8 +33,9 @@ anyhow = "1.0"
 thiserror = "1.0"
 log = "0.4"
 env_logger = "0.10"
- directories = "5.0"
+directories = "5.0"
 uuid = { version = "1.6", features = ["v4"] }
+openssl-sys = { version = "0.9", features = ["vendored"] }
 
 [features]
 default = ["custom-protocol"]
