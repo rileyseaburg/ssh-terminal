@@ -78,6 +78,7 @@ jobs:
       - name: Build iOS app with Tauri
         working-directory: src-tauri
         env:
+          APPLE_DEVELOPMENT_TEAM: "J9YRM3U37D"
           DEVELOPMENT_TEAM: "J9YRM3U37D"
           CODE_SIGN_STYLE: Automatic
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -85,6 +86,7 @@ jobs:
         run: |
           source $HOME/.cargo/env
           export PATH="/opt/homebrew/bin:$HOME/.cargo/bin:$PATH"
+          export APPLE_DEVELOPMENT_TEAM="J9YRM3U37D"
           # Initialize iOS project if not exists
           if [ ! -d "gen/apple" ]; then
             echo "Initializing iOS project..."
