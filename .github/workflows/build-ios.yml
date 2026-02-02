@@ -79,13 +79,22 @@ jobs:
         working-directory: src-tauri
         run: |
           # Generate icons using Tauri icon command if we have a source image
-          # For now, create a simple colored PNG as placeholder
           if [ ! -f icons/icon.png ]; then
             mkdir -p icons
-            # Use sips to create a simple icon on macOS
-            # Create a 1024x1024 transparent PNG
-            curl -sL "https://via.placeholder.com/1024/1e1e1e/4ec9b0?text=SSH" -o icons/icon.png || \
-            echo "Using default Tauri icon"
+            # Try Python with PIL first
+            python3 << 'PYEOF'
+from PIL import Image
+img = Image.new('RGBA', (1024, 1024), (30, 30, 30, 255))
+img.save('icons/icon.png')
+PYEOF
+            if [ ! -f icons/icon.png ]; then
+              # Fallback: use ImageMagick
+              convert -size 1024x1024 xc:'#1e1e1e' icons/icon.png 2>/dev/null || true
+            fi
+            if [ ! -f icons/icon.png ]; then
+              # Last resort: download a simple PNG
+              curl -sL "https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png" -o icons/icon.png 2>/dev/null || true
+            fi
           fi
           ls -la icons/
 
