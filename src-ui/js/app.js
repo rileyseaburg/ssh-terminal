@@ -252,9 +252,12 @@ class SSHTerminalApp {
             return;
         }
 
+        console.log('Attempting connection to:', host, port, username, authType);
+        
         try {
             this.updateConnectionStatus('Connecting...');
             
+            console.log('Calling Tauri invoke connect_ssh...');
             const sessionId = await window.__TAURI__.invoke('connect_ssh', {
                 host,
                 port,
@@ -262,6 +265,8 @@ class SSHTerminalApp {
                 authType,
                 authValue,
             });
+            
+            console.log('Connection successful, session ID:', sessionId);
             
             // Update current tab
             const tab = this.tabs.get(this.activeTabId);
@@ -285,7 +290,9 @@ class SSHTerminalApp {
             this.startReadingOutput(sessionId);
             
         } catch (error) {
-            console.error('Connection failed:', error);
+            console.error('Connection failed with error:', error);
+            console.error('Error type:', typeof error);
+            console.error('Error string:', String(error));
             this.updateConnectionStatus('Connection failed');
             alert(`Connection failed: ${error}`);
         }

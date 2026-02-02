@@ -5,7 +5,9 @@ use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use std::collections::HashMap;
+use std::time::Duration;
 use crate::session::ConnectionConfig;
+use log::info;
 
 pub struct SshConnection {
     session: Session,
@@ -25,30 +27,56 @@ impl SshManager {
     }
 
     pub async fn connect(&mut self, config: ConnectionConfig) -> Result<String, SshError> {
+        info!("Starting SSH connection to {}:{} as {}", config.host, config.port, config.username);
+        
         let session_id = uuid::Uuid::new_v4().to_string();
         
         let addr = format!("{}:{}", config.host, config.port);
-        let tcp = TcpStream::connect(&addr)
-            .map_err(|e| SshError::ConnectionFailed(e.to_string()))?;
+        info!("Connecting to address: {}", addr);
         
+        // Set a timeout for the connection
+        let tcp = tokio::time::timeout(
+            Duration::from_secs(10),
+            tokio::task::spawn_blocking(move || {
+                TcpStream::connect(&addr)
+            })
+        ).await
+        .map_err(|_| SshError::ConnectionFailed("Connection timeout".to_string()))?
+        .map_err(|e| SshError::ConnectionFailed(format!("Task join error: {}", e)))?
+        .map_err(|e| SshError::ConnectionFailed(format!("TCP connect failed: {}", e)))?;
+        
+        info!("TCP connection established");
+        
+        // Set non-blocking mode for the stream
+        tcp.set_nonblocking(true)
+            .map_err(|e| SshError::ConnectionFailed(format!("Failed to set non-blocking: {}", e)))?;
+        
+        info!("Creating SSH session...");
         let mut session = Session::new()
             .map_err(|e| SshError::SessionCreationFailed(e.to_string()))?;
         
+        info!("Setting TCP stream...");
         session.set_tcp_stream(tcp.try_clone().map_err(|e| SshError::CloneFailed(e.to_string()))?);
+        
+        info!("Starting SSH handshake...");
         session.handshake()
             .map_err(|e| SshError::HandshakeFailed(e.to_string()))?;
         
+        info!("Handshake complete, authenticating...");
         match config.auth_type.as_str() {
             "password" => {
+                info!("Using password authentication");
                 session.userauth_password(&config.username, &config.auth_value)
                     .map_err(|e| SshError::AuthFailed(e.to_string()))?;
             }
             "key" => {
+                info!("Using key authentication");
                 let key_path = Path::new(&config.auth_value);
                 session.userauth_pubkey_file(&config.username, None, key_path, None)
                     .map_err(|e| SshError::AuthFailed(format!("Key auth failed: {}", e)))?;
             }
             "agent" => {
+                info!("Using agent authentication");
                 session.userauth_agent(&config.username)
                     .map_err(|e| SshError::AuthFailed(format!("Agent auth failed: {}", e)))?;
             }
@@ -59,14 +87,21 @@ impl SshManager {
             return Err(SshError::AuthFailed("Authentication failed".to_string()));
         }
         
+        info!("Authenticated successfully");
+        
+        info!("Creating channel session...");
         let mut channel = session.channel_session()
             .map_err(|e| SshError::ChannelFailed(e.to_string()))?;
         
+        info!("Requesting PTY...");
         channel.request_pty("xterm-256color", None, Some((80, 24, 0, 0)))
             .map_err(|e| SshError::PtyRequestFailed(e.to_string()))?;
         
+        info!("Starting shell...");
         channel.shell()
             .map_err(|e| SshError::ShellFailed(e.to_string()))?;
+        
+        info!("Connection established successfully");
         
         let connection = SshConnection {
             session,
