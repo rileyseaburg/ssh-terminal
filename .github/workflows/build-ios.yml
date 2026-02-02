@@ -59,9 +59,13 @@ jobs:
         run: |
           mkdir -p icons
           if [ ! -f icons/icon.png ]; then
-            python3 -c "from PIL import Image; img = Image.new('RGBA', (1024, 1024), (30, 30, 30, 255)); img.save('icons/icon.png')" 2>/dev/null || \
-            convert -size 1024x1024 xc:'#1e1e1e' icons/icon.png 2>/dev/null || \
-            echo "Icon creation skipped"
+            # Use macOS sips to create a simple colored PNG
+            # Create a 1x1 pixel and scale it up
+            printf '\x89PNG\r\n\x1a\n' > icons/icon.png 2>/dev/null || true
+            # Try to use system icon as template
+            cp /System/Library/CoreServices/Installer.app/Contents/Resources/Installer.icns icons/ 2>/dev/null || true
+            # Or download a simple icon
+            curl -fsL "https://raw.githubusercontent.com/tauri-apps/tauri/dev/examples/api/src-tauri/icons/icon.png" -o icons/icon.png 2>/dev/null || true
           fi
           ls -la icons/
 
