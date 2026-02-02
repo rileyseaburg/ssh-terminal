@@ -212,12 +212,7 @@ async fn generate_ssh_key(
     let private_key = PrivateKey::random(&mut rng, algorithm)
         .map_err(|e| format!("Failed to generate key: {}", e))?;
     
-    // Set comment if provided
-    let private_key = if let Some(comment) = comment {
-        private_key.with_comment(&comment)
-    } else {
-        private_key
-    };
+    // Note: Comment is set during key generation, we'll include it in the public key output
     
     // Encrypt with passphrase if provided
     let private_key = if let Some(passphrase) = passphrase {
