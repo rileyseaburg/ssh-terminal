@@ -73,22 +73,15 @@ jobs:
         working-directory: src-tauri
         env:
           APPLE_DEVELOPMENT_TEAM: "J9YRM3U37D"
+          LIBSSH2_NO_ZLIB: "1"
         run: |
           source $HOME/.cargo/env
           export PATH="/opt/homebrew/bin:$HOME/.cargo/bin:$PATH"
           export APPLE_DEVELOPMENT_TEAM="J9YRM3U37D"
+          # Disable zlib in libssh2 to avoid linker issues
+          export LIBSSH2_NO_ZLIB=1
           if [ ! -d "gen/apple" ]; then
             cargo tauri ios init
-          fi
-          # Add zlib to Xcode project linker flags
-          PROJECT_FILE="gen/apple/ssh-terminal.xcodeproj/project.pbxproj"
-          if [ -f "$PROJECT_FILE" ]; then
-            # Add -lz to OTHER_LDFLAGS in the Xcode project
-            sed -i '' 's/OTHER_LDFLAGS = "/OTHER_LDFLAGS = "-lz /g' "$PROJECT_FILE" 2>/dev/null || \
-            sed -i 's/OTHER_LDFLAGS = "/OTHER_LDFLAGS = "-lz /g' "$PROJECT_FILE" 2>/dev/null || true
-            # Also try adding to the libapp library search
-            sed -i '' 's/-lapp/-lapp -lz/g' "$PROJECT_FILE" 2>/dev/null || \
-            sed -i 's/-lapp/-lapp -lz/g' "$PROJECT_FILE" 2>/dev/null || true
           fi
           cargo tauri ios build --target aarch64
 
