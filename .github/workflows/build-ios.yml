@@ -77,11 +77,13 @@ jobs:
           source $HOME/.cargo/env
           export PATH="/opt/homebrew/bin:$HOME/.cargo/bin:$PATH"
           export APPLE_DEVELOPMENT_TEAM="J9YRM3U37D"
+          # Disable zlib in libssh2 build
+          export LIBSSH2_SYS_USE_ZLIB=0
           if [ ! -d "gen/apple" ]; then
             cargo tauri ios init
           fi
-          # Create xcconfig file with zlib linker flag
-          echo 'OTHER_LDFLAGS = -lz' > gen/apple/Local.xcconfig
+          # Clean and rebuild to ensure no cached zlib objects
+          cargo clean --target aarch64-apple-ios 2>/dev/null || true
           cargo tauri ios build --target aarch64
 
       - name: Install to iPhone
