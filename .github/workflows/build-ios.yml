@@ -80,8 +80,10 @@ jobs:
           if [ ! -d "gen/apple" ]; then
             cargo tauri ios init
           fi
-          # Build with xcodebuild flags to link zlib
-          cargo tauri ios build --target aarch64 -- -- OTHER_LDFLAGS="-lz"
+          # Patch Xcode project to link zlib
+          chmod +x ../scripts/patch-xcode.sh
+          ../scripts/patch-xcode.sh
+          cargo tauri ios build --target aarch64
 
       - name: Install to iPhone
         if: github.event.inputs.install_to_device != 'false'
