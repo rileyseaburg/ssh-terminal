@@ -92,7 +92,7 @@ jobs:
           fi
           
           # Build for iOS device
-          cargo tauri ios build --target aarch64-apple-ios
+          cargo tauri ios build --target aarch64
 
       - name: Archive iOS app
         run: |
