@@ -13,29 +13,48 @@ echo "Patching Xcode project to link zlib..."
 # Create a backup
 cp "$PROJECT_FILE" "$PROJECT_FILE.bak"
 
-# Add -lz to the linker flags by modifying the build settings
-# Look for "libapp" and add "-lz" after it in the same line
+# Use Python to properly modify the Xcode project file
 python3 << 'EOF'
 import re
 
 with open('gen/apple/ssh-terminal.xcodeproj/project.pbxproj', 'r') as f:
     content = f.read()
 
-# Pattern to find library references and add -lz after -lapp
-# This adds zlib to the linked libraries
+# Method 1: Add -lz after libraries in "libraries" sections
+# Look for patterns like: libraries = (\n\t\t\t\t"-lapp",\n\t\t\t);
 content = re.sub(
-    r'(-lapp)',
-    r'\1 -lz',
+    r'(libraries\s*=\s*\([^)]*"-lapp")',
+    r'\1,\n\t\t\t\t"-lz"',
     content
 )
 
-# Also try to add to LIBRARY_SEARCH_PATHS if needed
-# But primarily we need to link against libz.dylib
+# Method 2: Add -lz to OTHER_LDFLAGS if present
+content = re.sub(
+    r'(OTHER_LDFLAGS\s*=\s*"[^"]*)"',
+    r'\1 -lz"',
+    content
+)
+
+# Method 3: Add libz.tbd framework reference
+# Find a framework section and add libz after
+content = re.sub(
+    r'(frameworks\s*=\s*\([^)]*\\bSecurity\\b[^)]*\))',
+    r'\1;\n\t\t\t\tlibraries = (\n\t\t\t\t\t"-lz",\n\t\t\t\t);',
+    content
+)
 
 with open('gen/apple/ssh-terminal.xcodeproj/project.pbxproj', 'w') as f:
     f.write(content)
 
 print("Patched project.pbxproj")
+
+# Verify the patch was applied
+with open('gen/apple/ssh-terminal.xcodeproj/project.pbxproj', 'r') as f:
+    verify_content = f.read()
+    if '-lz' in verify_content:
+        print("SUCCESS: -lz found in project file")
+    else:
+        print("WARNING: -lz not found in project file")
 EOF
 
 echo "Done patching Xcode project"
