@@ -1,7 +1,7 @@
 # SSH Terminal
 
-[![Test](https://github.com/YOUR_USERNAME/ssh-terminal/workflows/Test/badge.svg)](https://github.com/YOUR_USERNAME/ssh-terminal/actions)
-[![Release](https://github.com/YOUR_USERNAME/ssh-terminal/workflows/Release/badge.svg)](https://github.com/YOUR_USERNAME/ssh-terminal/releases)
+[![Test](https://github.com/rileyseaburg/ssh-terminal/workflows/Test/badge.svg)](https://github.com/rileyseaburg/ssh-terminal/actions)
+[![Release](https://github.com/rileyseaburg/ssh-terminal/workflows/Release/badge.svg)](https://github.com/rileyseaburg/ssh-terminal/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A cross-platform, secure SSH terminal application built with Tauri. Features tabbed terminals, session management, customizable themes, and robust security with encrypted credential storage.
@@ -32,17 +32,17 @@ Download the latest release for your platform:
 
 | Platform | Download |
 |----------|----------|
-| Windows (x64) | [SSH-Terminal-Setup.exe](https://github.com/YOUR_USERNAME/ssh-terminal/releases/latest) |
-| macOS (Apple Silicon) | [SSH-Terminal-aarch64.dmg](https://github.com/YOUR_USERNAME/ssh-terminal/releases/latest) |
-| macOS (Intel) | [SSH-Terminal-x86_64.dmg](https://github.com/YOUR_USERNAME/ssh-terminal/releases/latest) |
-| Linux (x64) | [ssh-terminal_amd64.deb](https://github.com/YOUR_USERNAME/ssh-terminal/releases/latest) |
-| Linux (AppImage) | [ssh-terminal.AppImage](https://github.com/YOUR_USERNAME/ssh-terminal/releases/latest) |
+| Windows (x64) | [SSH-Terminal-Setup.exe](https://github.com/rileyseaburg/ssh-terminal/releases/latest) |
+| macOS (Apple Silicon) | [SSH-Terminal-aarch64.dmg](https://github.com/rileyseaburg/ssh-terminal/releases/latest) |
+| macOS (Intel) | [SSH-Terminal-x86_64.dmg](https://github.com/rileyseaburg/ssh-terminal/releases/latest) |
+| Linux (x64) | [ssh-terminal_amd64.deb](https://github.com/rileyseaburg/ssh-terminal/releases/latest) |
+| Linux (AppImage) | [ssh-terminal.AppImage](https://github.com/rileyseaburg/ssh-terminal/releases/latest) |
 
-> **Note**: Replace `YOUR_USERNAME` with your actual GitHub username after forking/cloning.
+> **Note**: Replace `rileyseaburg` with your actual GitHub username after forking/cloning.
 
 ### Nightly Builds
 
-Get the latest development builds from the [Nightly Releases](https://github.com/YOUR_USERNAME/ssh-terminal/releases/tag/nightly).
+Get the latest development builds from the [Nightly Releases](https://github.com/rileyseaburg/ssh-terminal/releases/tag/nightly).
 
 ## Quick Start
 
