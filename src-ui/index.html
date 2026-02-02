@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSH Terminal</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <h1 class="app-title">SSH Terminal</h1>
+                <span class="app-version" id="app-version"></span>
+            </div>
+            <div class="header-right">
+                <button class="btn-icon" id="btn-settings" title="Settings">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                </button>
+                <button class="btn-icon" id="btn-new-session" title="New Session">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Tab Bar -->
+        <div class="tab-bar" id="tab-bar">
+            <div class="tab-container" id="tab-container">
+                <!-- Tabs will be dynamically added here -->
+            </div>
+            <button class="btn-add-tab" id="btn-add-tab" title="New Tab">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Terminal Container -->
+            <div class="terminal-container" id="terminal-container">
+                <!-- Terminals will be dynamically added here -->
+            </div>
+
+            <!-- Connection Panel -->
+            <div class="connection-panel" id="connection-panel">
+                <div class="panel-header">
+                    <h3>New Connection</h3>
+                    <button class="btn-close" id="btn-close-connection">&times;</button>
+                </div>
+                
+                <form id="connection-form" class="connection-form">
+                    <div class="form-group">
+                        <label for="conn-name">Session Name</label>
+                        <input type="text" id="conn-name" placeholder="My Server" required>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="conn-host">Host</label>
+                            <input type="text" id="conn-host" placeholder="192.168.1.1" required>
+                        </div>
+                        <div class="form-group form-group-small">
+                            <label for="conn-port">Port</label>
+                            <input type="number" id="conn-port" value="22" min="1" max="65535">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="conn-username">Username</label>
+                        <input type="text" id="conn-username" placeholder="root" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="conn-auth-type">Authentication</label>
+                        <select id="conn-auth-type">
+                            <option value="password">Password</option>
+                            <option value="key">SSH Key</option>
+                            <option value="agent">SSH Agent</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group" id="auth-password-group">
+                        <label for="conn-password">Password</label>
+                        <input type="password" id="conn-password" placeholder="Enter password">
+                    </div>
+                    
+                    <div class="form-group hidden" id="auth-key-group">
+                        <label for="conn-key-path">Private Key Path</label>
+                        <div class="input-with-button">
+                            <input type="text" id="conn-key-path" placeholder="~/.ssh/id_rsa" readonly>
+                            <button type="button" class="btn-secondary" id="btn-browse-key">Browse</button>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group hidden" id="auth-agent-group">
+                        <p class="info-text">Will use your SSH agent for authentication</p>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" id="btn-load-saved">Load Saved</button>
+                        <button type="submit" class="btn-primary">Connect</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Saved Sessions Panel -->
+            <div class="saved-sessions-panel hidden" id="saved-sessions-panel">
+                <div class="panel-header">
+                    <h3>Saved Sessions</h3>
+                    <button class="btn-close" id="btn-close-saved">&times;</button>
+                </div>
+                <div class="saved-sessions-list" id="saved-sessions-list">
+                    <!-- Saved sessions will be dynamically added here -->
+                </div>
+            </div>
+
+            <!-- Settings Panel -->
+            <div class="settings-panel hidden" id="settings-panel">
+                <div class="panel-header">
+                    <h3>Settings</h3>
+                    <button class="btn-close" id="btn-close-settings">&times;</button>
+                </div>
+                
+                <div class="settings-tabs">
+                    <button class="settings-tab active" data-tab="appearance">Appearance</button>
+                    <button class="settings-tab" data-tab="terminal">Terminal</button>
+                    <button class="settings-tab" data-tab="security">Security</button>
+                </div>
+                
+                <div class="settings-content">
+                    <div class="settings-section active" id="tab-appearance">
+                        <div class="form-group">
+                            <label for="setting-theme">Theme</label>
+                            <select id="setting-theme">
+                                <option value="dark">Dark</option>
+                                <option value="light">Light</option>
+                                <option value="dracula">Dracula</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="setting-opacity">Window Opacity</label>
+                            <input type="range" id="setting-opacity" min="0.5" max="1" step="0.05" value="1">
+                        </div>
+                    </div>
+                    
+                    <div class="settings-section" id="tab-terminal">
+                        <div class="form-group">
+                            <label for="setting-font-size">Font Size</label>
+                            <input type="number" id="setting-font-size" value="14" min="8" max="32">
+                        </div>
+                        <div class="form-group">
+                            <label for="setting-font-family">Font Family</label>
+                            <input type="text" id="setting-font-family" value="JetBrains Mono, monospace">
+                        </div>
+                        <div class="form-group">
+                            <label for="setting-cursor">Cursor Style</label>
+                            <select id="setting-cursor">
+                                <option value="block">Block</option>
+                                <option value="line">Line</option>
+                                <option value="bar">Bar</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="setting-scrollback">Scrollback Lines</label>
+                            <input type="number" id="setting-scrollback" value="10000" min="1000" max="100000">
+                        </div>
+                    </div>
+                    
+                    <div class="settings-section" id="tab-security">
+                        <div class="form-group checkbox">
+                            <label>
+                                <input type="checkbox" id="setting-verify-hosts" checked>
+                                Verify host keys
+                            </label>
+                        </div>
+                        <div class="form-group checkbox">
+                            <label>
+                                <input type="checkbox" id="setting-strict-hosts" checked>
+                                Strict host key checking
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label for="setting-lock-timeout">Auto-lock timeout (seconds)</label>
+                            <input type="number" id="setting-lock-timeout" value="300" min="0" max="3600">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="btn-reset-settings">Reset</button>
+                    <button type="button" class="btn-primary" id="btn-save-settings">Save</button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Status Bar -->
+        <footer class="status-bar">
+            <div class="status-left">
+                <span class="status-item" id="connection-status">Not connected</span>
+                <span class="status-item" id="terminal-size">80x24</span>
+            </div>
+            <div class="status-right">
+                <span class="status-item" id="key-status">Ready</span>
+            </div>
+        </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+    <script src="js/app.js" type="module"></script>
+</body>
+</html>
