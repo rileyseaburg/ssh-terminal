@@ -67,6 +67,13 @@ jobs:
             npm install
           fi
 
+      - name: Install XcodeGen
+        run: |
+          if ! command -v xcodegen &> /dev/null; then
+            brew install xcodegen
+          fi
+          xcodegen --version
+
       - name: Build iOS app with Tauri
         working-directory: src-tauri
         env:
