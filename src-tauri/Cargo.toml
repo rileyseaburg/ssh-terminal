@@ -36,6 +36,7 @@ env_logger = "0.10"
 directories = "5.0"
 uuid = { version = "1.6", features = ["v4"] }
 openssl-sys = { version = "0.9", features = ["vendored"] }
+ssh-key = { version = "0.6", features = ["ed25519", "rsa", "encryption", "alloc"] }
 
 [features]
 default = ["custom-protocol"]

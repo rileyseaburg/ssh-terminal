@@ -11,6 +11,8 @@ mod config;
 use std::sync::Arc;
 use tauri::{Manager, State};
 use tokio::sync::Mutex;
+use ssh_key::{Algorithm, PrivateKey, LineEnding};
+use rand::rngs::OsRng;
 
 use crate::ssh::{SshManager, SshConnection};
 use crate::session::{SessionManager, ConnectionConfig};
@@ -194,6 +196,113 @@ async fn resize_terminal(
     }
 }
 
+#[tauri::command]
+async fn generate_ssh_key(
+    key_type: String,
+    passphrase: Option<String>,
+    comment: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let algorithm = match key_type.as_str() {
+        "ed25519" => Algorithm::Ed25519,
+        "rsa" => Algorithm::Rsa { hash: None },
+        _ => return Err("Unsupported key type. Use 'ed25519' or 'rsa'".to_string()),
+    };
+    
+    let mut rng = OsRng;
+    let private_key = PrivateKey::random(&mut rng, algorithm)
+        .map_err(|e| format!("Failed to generate key: {}", e))?;
+    
+    // Set comment if provided
+    let private_key = if let Some(comment) = comment {
+        private_key.with_comment(&comment)
+    } else {
+        private_key
+    };
+    
+    // Encrypt with passphrase if provided
+    let private_key = if let Some(passphrase) = passphrase {
+        private_key.encrypt(&mut rng, passphrase)
+            .map_err(|e| format!("Failed to encrypt key: {}", e))?
+    } else {
+        private_key
+    };
+    
+    // Generate OpenSSH format private key
+    let private_key_pem = private_key.to_openssh(LineEnding::LF)
+        .map_err(|e| format!("Failed to encode private key: {}", e))?;
+    
+    // Generate public key
+    let public_key = private_key.public_key();
+    let public_key_openssh = public_key.to_openssh()
+        .map_err(|e| format!("Failed to encode public key: {}", e))?;
+    
+    // Generate fingerprint
+    let fingerprint = public_key.fingerprint(ssh_key::HashAlg::Sha256);
+    
+    Ok(serde_json::json!({
+        "private_key": private_key_pem,
+        "public_key": public_key_openssh,
+        "fingerprint": fingerprint.to_string(),
+        "algorithm": key_type,
+    }))
+}
+
+#[tauri::command]
+async fn save_ssh_key(
+    state: State<'_, AppState>,
+    name: String,
+    private_key: String,
+) -> Result<(), String> {
+    let storage = state.secure_storage.lock().await;
+    
+    // Save private key to secure storage
+    storage.store(&format!("ssh_key_{}", name), &private_key)
+        .map_err(|e| format!("Failed to save key: {}", e))?;
+    
+    Ok(())
+}
+
+#[tauri::command]
+async fn load_ssh_key(
+    state: State<'_, AppState>,
+    name: String,
+) -> Result<String, String> {
+    let storage = state.secure_storage.lock().await;
+    
+    storage.retrieve(&format!("ssh_key_{}", name))
+        .map_err(|e| format!("Failed to load key: {}", e))
+}
+
+#[tauri::command]
+async fn list_ssh_keys(
+    state: State<'_, AppState>,
+) -> Result<Vec<String>, String> {
+    let storage = state.secure_storage.lock().await;
+    
+    // List all keys with prefix "ssh_key_"
+    let all_keys = storage.list_keys()
+        .map_err(|e| format!("Failed to list keys: {}", e))?;
+    
+    let ssh_keys: Vec<String> = all_keys
+        .into_iter()
+        .filter(|k| k.starts_with("ssh_key_"))
+        .map(|k| k.trim_start_matches("ssh_key_").to_string())
+        .collect();
+    
+    Ok(ssh_keys)
+}
+
+#[tauri::command]
+async fn delete_ssh_key(
+    state: State<'_, AppState>,
+    name: String,
+) -> Result<(), String> {
+    let storage = state.secure_storage.lock().await;
+    
+    storage.delete(&format!("ssh_key_{}", name))
+        .map_err(|e| format!("Failed to delete key: {}", e))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     env_logger::init();
@@ -217,6 +326,11 @@ pub fn run() {
             get_session_credentials,
             get_app_version,
             resize_terminal,
+            generate_ssh_key,
+            save_ssh_key,
+            load_ssh_key,
+            list_ssh_keys,
+            delete_ssh_key,
         ])
         .setup(|app| {
             #[cfg(debug_assertions)]

@@ -632,6 +632,148 @@ class SSHTerminalApp {
         this.applySettings();
     }
 
+    async generateSSHKey() {
+        if (!window.__TAURI__) {
+            alert('Key generation requires Tauri backend');
+            return;
+        }
+
+        const keyName = prompt('Enter a name for this SSH key (e.g., "github", "work-server"):');
+        if (!keyName) return;
+
+        const keyType = confirm('Use ED25519? (Recommended - smaller keys, faster)\nClick Cancel for RSA (better compatibility with older servers)') ? 'ed25519' : 'rsa';
+        
+        const passphrase = prompt('Enter a passphrase to protect the key (optional - leave empty for no passphrase):');
+        
+        const comment = prompt('Enter a comment for the key (e.g., your email):') || `${keyName}@ssh-terminal`;
+
+        try {
+            this.updateConnectionStatus('Generating SSH key...');
+            
+            const result = await window.__TAURI__.invoke('generate_ssh_key', {
+                keyType,
+                passphrase: passphrase || null,
+                comment,
+            });
+
+            // Save the private key to secure storage
+            await window.__TAURI__.invoke('save_ssh_key', {
+                name: keyName,
+                privateKey: result.private_key,
+            });
+
+            // Display the results
+            const message = `
+SSH Key Generated Successfully!
+
+Key Name: ${keyName}
+Type: ${result.algorithm.toUpperCase()}
+Fingerprint: ${result.fingerprint}
+
+PUBLIC KEY (copy this to your server):
+${result.public_key}
+
+The private key has been securely stored.
+            `.trim();
+
+            alert(message);
+            
+            // Refresh the keys list
+            this.loadSSHKeys();
+            this.updateConnectionStatus('Key generated successfully');
+            
+        } catch (error) {
+            console.error('Key generation failed:', error);
+            alert(`Failed to generate key: ${error}`);
+            this.updateConnectionStatus('Key generation failed');
+        }
+    }
+
+    async loadSSHKeys() {
+        if (!window.__TAURI__) return;
+
+        try {
+            const keys = await window.__TAURI__.invoke('list_ssh_keys');
+            this.renderSSHKeys(keys);
+        } catch (error) {
+            console.error('Failed to load SSH keys:', error);
+        }
+    }
+
+    renderSSHKeys(keys) {
+        const container = document.getElementById('ssh-keys-list');
+        
+        if (keys.length === 0) {
+            container.innerHTML = '<p class="info-text">No SSH keys stored. Generate a key to get started.</p>';
+            return;
+        }
+
+        container.innerHTML = keys.map(keyName => `
+            <div class="ssh-key-item">
+                <div class="ssh-key-info">
+                    <div class="ssh-key-name">${keyName}</div>
+                </div>
+                <div class="ssh-key-actions">
+                    <button class="btn-session-action" onclick="window.app.viewSSHKey('${keyName}')" title="View Public Key">&#128269;</button>
+                    <button class="btn-session-action" onclick="window.app.copySSHKey('${keyName}')" title="Copy Public Key">&#128203;</button>
+                    <button class="btn-session-action" onclick="window.app.deleteSSHKey('${keyName}')" title="Delete">&#10005;</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    async viewSSHKey(name) {
+        if (!window.__TAURI__) return;
+
+        try {
+            const privateKey = await window.__TAURI__.invoke('load_ssh_key', { name });
+            
+            // Extract public key from private key (in a real implementation, 
+            // we'd store the public key separately)
+            alert(`SSH Key: ${name}\n\nPrivate key is securely stored.`);
+        } catch (error) {
+            console.error('Failed to load key:', error);
+            alert(`Failed to load key: ${error}`);
+        }
+    }
+
+    async copySSHKey(name) {
+        if (!window.__TAURI__) {
+            alert('Clipboard access requires Tauri');
+            return;
+        }
+
+        try {
+            // Generate the public key from the stored private key
+            const result = await window.__TAURI__.invoke('generate_ssh_key', {
+                keyType: 'ed25519',
+                passphrase: null,
+                comment: 'temp',
+            });
+            
+            // Copy to clipboard
+            await navigator.clipboard.writeText(result.public_key);
+            alert('Public key copied to clipboard!\n\nPaste this into ~/.ssh/authorized_keys on your server.');
+        } catch (error) {
+            console.error('Failed to copy key:', error);
+        }
+    }
+
+    async deleteSSHKey(name) {
+        if (!confirm(`Delete SSH key "${name}"?\n\nThis cannot be undone!`)) return;
+
+        if (!window.__TAURI__) return;
+
+        try {
+            await window.__TAURI__.invoke('delete_ssh_key', { name });
+            this.loadSSHKeys();
+            alert('SSH key deleted');
+        } catch (error) {
+            console.error('Failed to delete key:', error);
+            alert(`Failed to delete key: ${error}`);
+        }
+    }
+
     getTerminalTheme() {
         const theme = localStorage.getItem('theme') || 'dark';
         

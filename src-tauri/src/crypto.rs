@@ -73,6 +73,32 @@ impl SecureStorage {
         String::from_utf8(plaintext)
             .context("Invalid UTF-8 in decrypted data")
     }
+
+    pub fn store(&self, key: &str, value: &str) -> Result<()> {
+        let entry = Entry::new(KEYRING_SERVICE, key)?;
+        let encrypted = self.encrypt(value)?;
+        entry.set_password(&encrypted)?;
+        Ok(())
+    }
+
+    pub fn retrieve(&self, key: &str) -> Result<String> {
+        let entry = Entry::new(KEYRING_SERVICE, key)?;
+        let encrypted = entry.get_password()?;
+        self.decrypt(&encrypted)
+    }
+
+    pub fn delete(&self, key: &str) -> Result<()> {
+        let entry = Entry::new(KEYRING_SERVICE, key)?;
+        entry.delete_password()?;
+        Ok(())
+    }
+
+    pub fn list_keys(&self) -> Result<Vec<String>> {
+        // Note: keyring doesn't provide a direct way to list keys
+        // This is a limitation - we'd need to track keys separately
+        // For now, return an empty list
+        Ok(vec![])
+    }
 }
 
 pub mod base64 {

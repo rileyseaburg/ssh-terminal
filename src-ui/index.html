@@ -193,6 +193,18 @@
                             <label for="setting-lock-timeout">Auto-lock timeout (seconds)</label>
                             <input type="number" id="setting-lock-timeout" value="300" min="0" max="3600">
                         </div>
+                        
+                        <hr class="settings-divider">
+                        
+                        <h4>SSH Keys</h4>
+                        <div class="ssh-keys-section">
+                            <div class="form-group">
+                                <button type="button" class="btn-secondary" id="btn-generate-key">Generate New SSH Key</button>
+                            </div>
+                            <div class="ssh-keys-list" id="ssh-keys-list">
+                                <p class="info-text">No SSH keys stored</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
