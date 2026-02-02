@@ -1,0 +1,11 @@
+[target.aarch64-apple-ios]
+linker = "clang"
+rustflags = ["-C", "link-arg=-lz"]
+
+[target.aarch64-apple-ios-sim]
+linker = "clang"
+rustflags = ["-C", "link-arg=-lz"]
+
+[target.x86_64-apple-ios]
+linker = "clang"
+rustflags = ["-C", "link-arg=-lz"]
