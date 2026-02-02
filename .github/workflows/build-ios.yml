@@ -75,6 +75,20 @@ jobs:
           fi
           xcodegen --version
 
+      - name: Generate app icons
+        working-directory: src-tauri
+        run: |
+          # Generate icons using Tauri icon command if we have a source image
+          # For now, create a simple colored PNG as placeholder
+          if [ ! -f icons/icon.png ]; then
+            mkdir -p icons
+            # Use sips to create a simple icon on macOS
+            # Create a 1024x1024 transparent PNG
+            curl -sL "https://via.placeholder.com/1024/1e1e1e/4ec9b0?text=SSH" -o icons/icon.png || \
+            echo "Using default Tauri icon"
+          fi
+          ls -la icons/
+
       - name: Build iOS app with Tauri
         working-directory: src-tauri
         env:
