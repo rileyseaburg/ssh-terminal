@@ -194,6 +194,7 @@ async fn resize_terminal(
     }
 }
 
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     env_logger::init();
     
