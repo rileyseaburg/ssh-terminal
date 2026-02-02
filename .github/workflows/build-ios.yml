@@ -80,10 +80,11 @@ jobs:
           if [ ! -d "gen/apple" ]; then
             cargo tauri ios init
           fi
-          # Patch Xcode project to link zlib
-          chmod +x ../scripts/patch-xcode.sh
-          ../scripts/patch-xcode.sh
-          cargo tauri ios build --target aarch64
+          # Build Rust library first
+          cargo build --target aarch64-apple-ios --release --lib
+          # Build iOS app with xcodebuild directly, adding -lz
+          cd gen/apple
+          xcodebuild -scheme ssh-terminal_iOS -workspace ssh-terminal.xcodeproj/project.xcworkspace -sdk iphoneos -configuration release OTHER_LDFLAGS="-lz" build
 
       - name: Install to iPhone
         if: github.event.inputs.install_to_device != 'false'
