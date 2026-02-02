@@ -65,11 +65,11 @@ async fn send_command(
     state: State<'_, AppState>,
     session_id: String,
     command: String,
-) -> Result<String, String> {
+) -> Result<(), String> {
     let manager = state.ssh_manager.lock().await;
     
     match manager.send_command(&session_id, &command).await {
-        Ok(output) => Ok(output),
+        Ok(()) => Ok(()),
         Err(e) => Err(format!("Command failed: {}", e)),
     }
 }
