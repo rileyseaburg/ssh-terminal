@@ -82,9 +82,9 @@ jobs:
           CODE_SIGN_STYLE: Automatic
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          PATH: "/opt/homebrew/bin:$PATH"
         run: |
-          export PATH="/opt/homebrew/bin:$PATH"
+          source $HOME/.cargo/env
+          export PATH="/opt/homebrew/bin:$HOME/.cargo/bin:$PATH"
           # Initialize iOS project if not exists
           if [ ! -d "gen/apple" ]; then
             echo "Initializing iOS project..."
