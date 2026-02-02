@@ -18,7 +18,7 @@ impl SecureStorage {
     pub fn new() -> Result<Self> {
         let key = Self::get_or_create_key()?;
         let cipher = Aes256Gcm::new_from_slice(&key)
-            .context("Failed to create cipher")?;
+            .map_err(|_| anyhow::anyhow!("Failed to create cipher: invalid key length"))?;
         
         Ok(Self { cipher })
     }
