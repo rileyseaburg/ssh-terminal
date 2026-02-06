@@ -35,10 +35,23 @@ impl SessionManager {
     }
 
     fn get_config_dir() -> PathBuf {
+        // On iOS, use the app's documents directory (sandbox-friendly)
+        #[cfg(target_os = "ios")]
+        {
+            if let Ok(home) = std::env::var("HOME") {
+                let dir = PathBuf::from(home).join("Documents").join(".ssh-terminal");
+                return dir;
+            }
+        }
+        
         if let Some(config_dir) = directories::ProjectDirs::from("com", "sshterminal", "app") {
             config_dir.config_dir().to_path_buf()
         } else {
-            PathBuf::from(".config/ssh-terminal")
+            // Fallback for other platforms
+            dirs::home_dir()
+                .unwrap_or_else(|| PathBuf::from("."))
+                .join(".config")
+                .join("ssh-terminal")
         }
     }
 
