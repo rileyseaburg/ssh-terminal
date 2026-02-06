@@ -798,35 +798,14 @@ The private key has been securely stored.
         }
     }
 
-    async autoImportFromVault() {
+    async ensureDefaultSessions() {
         try {
-            // Check if any sessions already exist
-            const sessions = await window.__TAURI__.core.invoke('load_sessions');
-            if (sessions && sessions.length > 0) {
-                console.log('Sessions already exist, skipping Vault import');
-                return;
+            const created = await window.__TAURI__.core.invoke('ensure_default_sessions');
+            if (created) {
+                console.log('Default session created');
             }
-
-            // Prompt user for Vault credentials on first launch
-            const vaultUrl = prompt('Enter Vault URL to import default sessions (or Cancel to skip):', 'https://vault.spotlessbinco.com');
-            if (!vaultUrl) return;
-
-            const vaultToken = prompt('Enter Vault token:');
-            if (!vaultToken) return;
-
-            const secretPath = prompt('Enter secret path:', 'secret/data/ssh-terminal/default-session');
-            if (!secretPath) return;
-
-            console.log('Importing session from Vault...');
-            const result = await window.__TAURI__.core.invoke('import_from_vault', {
-                vaultUrl,
-                vaultToken,
-                secretPath,
-            });
-            console.log('Vault import result:', result);
-            alert(`Session imported: ${result}`);
         } catch (error) {
-            console.warn('Vault auto-import skipped:', error);
+            console.warn('Default session setup skipped:', error);
         }
     }
 

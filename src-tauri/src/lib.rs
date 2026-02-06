@@ -365,6 +365,39 @@ async fn import_from_vault(
 }
 
 #[tauri::command]
+async fn ensure_default_sessions(
+    state: State<'_, AppState>,
+) -> Result<bool, String> {
+    let mut session_manager = state.session_manager.lock().await;
+    
+    // Check if sessions already exist
+    let existing = session_manager.load_sessions().await
+        .map_err(|e| format!("Load failed: {}", e))?;
+    if !existing.is_empty() {
+        return Ok(false); // already have sessions
+    }
+    
+    // Create default session: Mac Mini
+    let config = ConnectionConfig {
+        host: "192.168.50.248".to_string(),
+        port: 22,
+        username: "rileyseaburg".to_string(),
+        auth_type: "password".to_string(),
+        auth_value: String::new(),
+    };
+    
+    let secure_storage = state.secure_storage.lock().await;
+    let encrypted_auth = secure_storage.encrypt("")
+        .map_err(|e| format!("Encryption failed: {}", e))?;
+    drop(secure_storage);
+    
+    session_manager.save_session("Mac Mini", config, encrypted_auth).await
+        .map_err(|e| format!("Save failed: {}", e))?;
+    
+    Ok(true) // created default session
+}
+
+#[tauri::command]
 async fn delete_ssh_key(
     state: State<'_, AppState>,
     name: String,
@@ -414,6 +447,7 @@ pub fn run() {
             list_ssh_keys,
             delete_ssh_key,
             import_from_vault,
+            ensure_default_sessions,
         ])
         .setup(|app| {
             #[cfg(debug_assertions)]
