@@ -23,6 +23,9 @@ class SSHTerminalApp {
             this.version = await window.__TAURI__.core.invoke('get_app_version');
             document.getElementById('app-version').textContent = `v${this.version}`;
             console.log('Tauri initialized');
+            
+            // Auto-import default session from Vault if no sessions exist
+            await this.autoImportFromVault();
         } else {
             console.warn('Tauri not available - running in demo mode');
         }
@@ -792,6 +795,38 @@ The private key has been securely stored.
         } catch (error) {
             console.error('Failed to delete key:', error);
             alert(`Failed to delete key: ${error}`);
+        }
+    }
+
+    async autoImportFromVault() {
+        try {
+            // Check if any sessions already exist
+            const sessions = await window.__TAURI__.core.invoke('load_sessions');
+            if (sessions && sessions.length > 0) {
+                console.log('Sessions already exist, skipping Vault import');
+                return;
+            }
+
+            // Prompt user for Vault credentials on first launch
+            const vaultUrl = prompt('Enter Vault URL to import default sessions (or Cancel to skip):', 'https://vault.spotlessbinco.com');
+            if (!vaultUrl) return;
+
+            const vaultToken = prompt('Enter Vault token:');
+            if (!vaultToken) return;
+
+            const secretPath = prompt('Enter secret path:', 'secret/data/ssh-terminal/default-session');
+            if (!secretPath) return;
+
+            console.log('Importing session from Vault...');
+            const result = await window.__TAURI__.core.invoke('import_from_vault', {
+                vaultUrl,
+                vaultToken,
+                secretPath,
+            });
+            console.log('Vault import result:', result);
+            alert(`Session imported: ${result}`);
+        } catch (error) {
+            console.warn('Vault auto-import skipped:', error);
         }
     }
 

@@ -288,6 +288,83 @@ async fn list_ssh_keys(
 }
 
 #[tauri::command]
+async fn import_from_vault(
+    state: State<'_, AppState>,
+    vault_url: String,
+    vault_token: String,
+    secret_path: String,
+) -> Result<String, String> {
+    // Fetch secret from Vault KV v2
+    let url = format!("{}/v1/{}", vault_url.trim_end_matches('/'), secret_path);
+    
+    let client = reqwest::Client::builder()
+        .danger_accept_invalid_certs(true)  // allow self-signed certs
+        .build()
+        .map_err(|e| format!("HTTP client error: {}", e))?;
+    
+    let resp = client
+        .get(&url)
+        .header("X-Vault-Token", &vault_token)
+        .send()
+        .await
+        .map_err(|e| format!("Vault request failed: {}", e))?;
+    
+    if !resp.status().is_success() {
+        return Err(format!("Vault returned status: {}", resp.status()));
+    }
+    
+    let body: serde_json::Value = resp.json().await
+        .map_err(|e| format!("Failed to parse Vault response: {}", e))?;
+    
+    // KV v2 response: { data: { data: { host, port, username, auth_type, ... } } }
+    let data = body
+        .get("data")
+        .and_then(|d| d.get("data"))
+        .ok_or_else(|| "Invalid Vault response: missing data.data".to_string())?;
+    
+    let host = data.get("host")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| "Missing 'host' in Vault secret".to_string())?
+        .to_string();
+    let port = data.get("port")
+        .and_then(|v| v.as_u64().or_else(|| v.as_str().and_then(|s| s.parse().ok())))
+        .unwrap_or(22) as u16;
+    let username = data.get("username")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| "Missing 'username' in Vault secret".to_string())?
+        .to_string();
+    let auth_type = data.get("auth_type")
+        .and_then(|v| v.as_str())
+        .unwrap_or("password")
+        .to_string();
+    let default_name = format!("{}@{}", username, host);
+    let session_name = data.get("name")
+        .and_then(|v| v.as_str())
+        .unwrap_or(&default_name)
+        .to_string();
+    
+    // Save as local session with empty auth (user enters password at connect time)
+    let config = ConnectionConfig {
+        host: host.clone(),
+        port,
+        username: username.clone(),
+        auth_type: auth_type.clone(),
+        auth_value: String::new(),
+    };
+    
+    let secure_storage = state.secure_storage.lock().await;
+    let encrypted_auth = secure_storage.encrypt("")
+        .map_err(|e| format!("Encryption failed: {}", e))?;
+    drop(secure_storage);
+    
+    let mut session_manager = state.session_manager.lock().await;
+    session_manager.save_session(&session_name, config, encrypted_auth).await
+        .map_err(|e| format!("Save failed: {}", e))?;
+    
+    Ok(format!("Imported session '{}' ({}@{}:{})", session_name, username, host, port))
+}
+
+#[tauri::command]
 async fn delete_ssh_key(
     state: State<'_, AppState>,
     name: String,
@@ -336,6 +413,7 @@ pub fn run() {
             load_ssh_key,
             list_ssh_keys,
             delete_ssh_key,
+            import_from_vault,
         ])
         .setup(|app| {
             #[cfg(debug_assertions)]
