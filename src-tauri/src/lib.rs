@@ -123,7 +123,7 @@ async fn save_session(
 async fn load_sessions(
     state: State<'_, AppState>,
 ) -> Result<Vec<serde_json::Value>, String> {
-    let session_manager = state.session_manager.lock().await;
+    let mut session_manager = state.session_manager.lock().await;
     
     match session_manager.load_sessions().await {
         Ok(sessions) => {
