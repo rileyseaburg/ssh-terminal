@@ -24,8 +24,8 @@ class SSHTerminalApp {
             document.getElementById('app-version').textContent = `v${this.version}`;
             console.log('Tauri initialized');
             
-            // Auto-import default session from Vault if no sessions exist
-            await this.autoImportFromVault();
+            // Ensure default sessions exist on first launch
+            await this.ensureDefaultSessions();
         } else {
             console.warn('Tauri not available - running in demo mode');
         }
