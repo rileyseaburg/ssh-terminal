@@ -252,6 +252,7 @@ body {
 .saved-sessions-panel.hidden,
 .settings-panel.hidden {
     transform: translateX(100%);
+    pointer-events: none;
 }
 
 .panel-header {

@@ -19,8 +19,8 @@ class SSHTerminalApp {
         this.loadSettings();
         this.createNewTab();
         
-        if (window.__TAURI__) {
-            this.version = await window.__TAURI__.invoke('get_app_version');
+        if (window.__TAURI__?.core) {
+            this.version = await window.__TAURI__.core.invoke('get_app_version');
             document.getElementById('app-version').textContent = `v${this.version}`;
             console.log('Tauri initialized');
         } else {
@@ -120,6 +120,14 @@ class SSHTerminalApp {
                 this.switchSettingsTab(e.target.dataset.tab);
             });
         });
+
+        // Generate SSH key button
+        const genKeyBtn = document.getElementById('btn-generate-key');
+        if (genKeyBtn) {
+            genKeyBtn.addEventListener('click', () => {
+                this.generateSSHKey();
+            });
+        }
 
         // Window resize
         window.addEventListener('resize', () => {
@@ -271,7 +279,7 @@ class SSHTerminalApp {
             authValue = document.getElementById('conn-key-path').value;
         }
 
-        if (!window.__TAURI__) {
+        if (!window.__TAURI__?.core) {
             alert('Tauri not available. This is a demo mode.');
             return;
         }
@@ -282,7 +290,7 @@ class SSHTerminalApp {
             this.updateConnectionStatus('Connecting...');
             
             console.log('Calling Tauri invoke connect_ssh...');
-            const sessionId = await window.__TAURI__.invoke('connect_ssh', {
+            const sessionId = await window.__TAURI__.core.invoke('connect_ssh', {
                 host,
                 port,
                 username,
@@ -323,10 +331,10 @@ class SSHTerminalApp {
     }
 
     async disconnect(sessionId) {
-        if (!window.__TAURI__) return;
+        if (!window.__TAURI__?.core) return;
         
         try {
-            await window.__TAURI__.invoke('disconnect_ssh', { sessionId });
+            await window.__TAURI__.core.invoke('disconnect_ssh', { sessionId });
             this.sessions.delete(sessionId);
             
             // Update tab
@@ -345,10 +353,10 @@ class SSHTerminalApp {
     }
 
     async sendToSession(sessionId, data) {
-        if (!window.__TAURI__) return;
+        if (!window.__TAURI__?.core) return;
         
         try {
-            await window.__TAURI__.invoke('send_command', {
+            await window.__TAURI__.core.invoke('send_command', {
                 sessionId,
                 command: data,
             });
@@ -362,7 +370,7 @@ class SSHTerminalApp {
             if (!this.sessions.has(sessionId)) return;
             
             try {
-                const output = await window.__TAURI__.invoke('read_output', { sessionId });
+                const output = await window.__TAURI__.core.invoke('read_output', { sessionId });
                 
                 if (output) {
                     // Find tab with this session
@@ -400,7 +408,7 @@ class SSHTerminalApp {
             authValue = document.getElementById('conn-key-path').value;
         }
 
-        if (!window.__TAURI__) {
+        if (!window.__TAURI__?.core) {
             // Demo mode - save to localStorage
             const sessions = JSON.parse(localStorage.getItem('saved-sessions') || '[]');
             sessions.push({ name, host, port, username, authType });
@@ -410,7 +418,7 @@ class SSHTerminalApp {
         }
 
         try {
-            await window.__TAURI__.invoke('save_session', {
+            await window.__TAURI__.core.invoke('save_session', {
                 name,
                 host,
                 port,
@@ -427,7 +435,7 @@ class SSHTerminalApp {
     }
 
     async loadSavedSessions() {
-        if (!window.__TAURI__) {
+        if (!window.__TAURI__?.core) {
             // Demo mode
             const sessions = JSON.parse(localStorage.getItem('saved-sessions') || '[]');
             this.renderSavedSessions(sessions);
@@ -435,7 +443,7 @@ class SSHTerminalApp {
         }
 
         try {
-            const sessions = await window.__TAURI__.invoke('load_sessions');
+            const sessions = await window.__TAURI__.core.invoke('load_sessions');
             this.renderSavedSessions(sessions);
         } catch (error) {
             console.error('Load failed:', error);
@@ -488,7 +496,7 @@ class SSHTerminalApp {
         if (session.auth_type === 'key') {
             // Load key path from secure storage
             try {
-                const authValue = await window.__TAURI__.invoke('get_session_credentials', {
+                const authValue = await window.__TAURI__.core.invoke('get_session_credentials', {
                     name: session.name,
                 });
                 document.getElementById('conn-key-path').value = authValue;
@@ -503,7 +511,7 @@ class SSHTerminalApp {
     async deleteSession(name) {
         if (!confirm(`Delete session "${name}"?`)) return;
         
-        if (!window.__TAURI__) {
+        if (!window.__TAURI__?.core) {
             let sessions = JSON.parse(localStorage.getItem('saved-sessions') || '[]');
             sessions = sessions.filter(s => s.name !== name);
             localStorage.setItem('saved-sessions', JSON.stringify(sessions));
@@ -512,7 +520,7 @@ class SSHTerminalApp {
         }
 
         try {
-            await window.__TAURI__.invoke('delete_session', { name });
+            await window.__TAURI__.core.invoke('delete_session', { name });
             this.loadSavedSessions();
         } catch (error) {
             console.error('Delete failed:', error);
@@ -526,28 +534,10 @@ class SSHTerminalApp {
     }
 
     async browseForKey() {
-        if (!window.__TAURI__) {
-            const path = prompt('Enter key path:');
-            if (path) {
-                document.getElementById('conn-key-path').value = path;
-            }
-            return;
-        }
-
-        try {
-            const selected = await window.__TAURI__.dialog.open({
-                multiple: false,
-                filters: [{
-                    name: 'SSH Keys',
-                    extensions: ['', 'pem', 'key', 'pub'],
-                }],
-            });
-            
-            if (selected) {
-                document.getElementById('conn-key-path').value = selected;
-            }
-        } catch (error) {
-            console.error('Browse failed:', error);
+        // Use prompt-based input since the dialog plugin is not available
+        const path = prompt('Enter the path to your SSH key file (e.g., ~/.ssh/id_ed25519):');
+        if (path) {
+            document.getElementById('conn-key-path').value = path;
         }
     }
 
@@ -664,7 +654,7 @@ class SSHTerminalApp {
     }
 
     async generateSSHKey() {
-        if (!window.__TAURI__) {
+        if (!window.__TAURI__?.core) {
             alert('Key generation requires Tauri backend');
             return;
         }
@@ -681,14 +671,14 @@ class SSHTerminalApp {
         try {
             this.updateConnectionStatus('Generating SSH key...');
             
-            const result = await window.__TAURI__.invoke('generate_ssh_key', {
+            const result = await window.__TAURI__.core.invoke('generate_ssh_key', {
                 keyType,
                 passphrase: passphrase || null,
                 comment,
             });
 
             // Save the private key to secure storage
-            await window.__TAURI__.invoke('save_ssh_key', {
+            await window.__TAURI__.core.invoke('save_ssh_key', {
                 name: keyName,
                 privateKey: result.private_key,
             });
@@ -721,10 +711,10 @@ The private key has been securely stored.
     }
 
     async loadSSHKeys() {
-        if (!window.__TAURI__) return;
+        if (!window.__TAURI__?.core) return;
 
         try {
-            const keys = await window.__TAURI__.invoke('list_ssh_keys');
+            const keys = await window.__TAURI__.core.invoke('list_ssh_keys');
             this.renderSSHKeys(keys);
         } catch (error) {
             console.error('Failed to load SSH keys:', error);
@@ -754,10 +744,10 @@ The private key has been securely stored.
     }
 
     async viewSSHKey(name) {
-        if (!window.__TAURI__) return;
+        if (!window.__TAURI__?.core) return;
 
         try {
-            const privateKey = await window.__TAURI__.invoke('load_ssh_key', { name });
+            const privateKey = await window.__TAURI__.core.invoke('load_ssh_key', { name });
             
             // Extract public key from private key (in a real implementation, 
             // we'd store the public key separately)
@@ -769,14 +759,14 @@ The private key has been securely stored.
     }
 
     async copySSHKey(name) {
-        if (!window.__TAURI__) {
+        if (!window.__TAURI__?.core) {
             alert('Clipboard access requires Tauri');
             return;
         }
 
         try {
             // Generate the public key from the stored private key
-            const result = await window.__TAURI__.invoke('generate_ssh_key', {
+            const result = await window.__TAURI__.core.invoke('generate_ssh_key', {
                 keyType: 'ed25519',
                 passphrase: null,
                 comment: 'temp',
@@ -793,10 +783,10 @@ The private key has been securely stored.
     async deleteSSHKey(name) {
         if (!confirm(`Delete SSH key "${name}"?\n\nThis cannot be undone!`)) return;
 
-        if (!window.__TAURI__) return;
+        if (!window.__TAURI__?.core) return;
 
         try {
-            await window.__TAURI__.invoke('delete_ssh_key', { name });
+            await window.__TAURI__.core.invoke('delete_ssh_key', { name });
             this.loadSSHKeys();
             alert('SSH key deleted');
         } catch (error) {
@@ -888,9 +878,9 @@ The private key has been securely stored.
                 this.updateTerminalSize();
                 
                 // Notify backend of resize
-                if (tab.sessionId && tab.connected && window.__TAURI__) {
+                if (tab.sessionId && tab.connected && window.__TAURI__?.core) {
                     const dims = tab.terminal._core._renderService.dimensions;
-                    window.__TAURI__.invoke('resize_terminal', {
+                    window.__TAURI__.core.invoke('resize_terminal', {
                         sessionId: tab.sessionId,
                         cols: tab.terminal.cols,
                         rows: tab.terminal.rows,
