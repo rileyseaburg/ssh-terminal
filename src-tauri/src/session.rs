@@ -65,8 +65,9 @@ impl SessionManager {
         Ok(())
     }
 
-    pub async fn load_sessions(&self) -> Result<Vec<(String, ConnectionConfig)>> {
-        self.load_sessions_from_disk().await?;
+    pub async fn load_sessions(&mut self) -> Result<Vec<(String, ConnectionConfig)>> {
+        let loaded = self.load_sessions_from_disk().await?;
+        self.sessions = loaded;
         
         let mut result = Vec::new();
         for (name, session) in &self.sessions {

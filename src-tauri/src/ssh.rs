@@ -143,6 +143,8 @@ impl SshManager {
     pub async fn read_output(&self, session_id: &str) -> Result<String, SshError> {
         if let Some(conn) = self.connections.get(session_id) {
             let mut conn = conn.lock().await;
+            // Set non-blocking so read doesn't hold the mutex forever
+            conn.session.set_blocking(false);
             let mut buffer = [0u8; 8192];
             let mut output = String::new();
             

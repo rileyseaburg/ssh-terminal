@@ -1,5 +1,6 @@
-import { Terminal } from 'https://esm.sh/xterm@5.3.0';
-import { FitAddon } from 'https://esm.sh/xterm-addon-fit@0.8.0';
+// Use UMD globals from xterm.min.js and xterm-addon-fit.min.js loaded in index.html
+const Terminal = window.Terminal;
+const FitAddon = window.FitAddon.FitAddon;
 
 class SSHTerminalApp {
     constructor() {
@@ -13,7 +14,6 @@ class SSHTerminalApp {
     }
 
     async init() {
-        alert('App initializing...');
         this.cacheDOMElements();
         this.bindEvents();
         this.loadSettings();
@@ -22,9 +22,9 @@ class SSHTerminalApp {
         if (window.__TAURI__) {
             this.version = await window.__TAURI__.invoke('get_app_version');
             document.getElementById('app-version').textContent = `v${this.version}`;
-            alert('Tauri initialized!');
+            console.log('Tauri initialized');
         } else {
-            alert('WARNING: Tauri not available!');
+            console.warn('Tauri not available - running in demo mode');
         }
     }
 
@@ -52,14 +52,12 @@ class SSHTerminalApp {
             newSessionBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                alert('New session clicked!');
                 console.log('New session button clicked');
                 this.showConnectionPanel();
             });
             console.log('New session button bound successfully');
         } else {
             console.error('New session button not found!');
-            alert('ERROR: New session button not found!');
         }
 
         // Tab bar
@@ -68,14 +66,12 @@ class SSHTerminalApp {
             addTabBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                alert('Add tab clicked!');
                 console.log('Add tab button clicked');
                 this.createNewTab();
             });
             console.log('Add tab button bound successfully');
         } else {
             console.error('Add tab button not found!');
-            alert('ERROR: Add tab button not found!');
         }
 
         // Connection panel

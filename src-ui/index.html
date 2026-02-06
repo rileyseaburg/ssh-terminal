@@ -8,10 +8,6 @@
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <script>
-        // Immediate test - this should show a popup as soon as the page loads
-        alert('HTML body loaded - JavaScript is working!');
-    </script>
     <div id="app">
         <!-- Header -->
         <header class="app-header">
@@ -233,16 +229,6 @@
 
     <script src="js/xterm.min.js"></script>
     <script src="js/xterm-addon-fit.min.js"></script>
-    <script>
-        // Test if external scripts loaded
-        alert('External scripts loaded. Terminal available: ' + (typeof Terminal !== 'undefined'));
-    </script>
-    <script src="js/app.js" type="module"></script>
-    <script>
-        // Fallback if module fails
-        window.onerror = function(msg, url, line) {
-            alert('JavaScript Error: ' + msg + '\nLine: ' + line);
-        };
-    </script>
+    <script src="js/app.js"></script>
 </body>
 </html>

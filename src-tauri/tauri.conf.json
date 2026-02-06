@@ -5,8 +5,7 @@
   "build": {
     "beforeBuildCommand": "",
     "beforeDevCommand": "",
-    "frontendDist": "../src-ui",
-    "devUrl": "http://localhost:1420"
+    "frontendDist": "../src-ui"
   },
   "bundle": {
     "active": true,
