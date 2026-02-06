@@ -37,6 +37,10 @@ directories = "5.0"
 uuid = { version = "1.6", features = ["v4"] }
 ssh-key = { version = "0.6", features = ["ed25519", "rsa", "encryption", "alloc"] }
 
+[target.'cfg(target_os = "ios")'.dependencies]
+# Vendored OpenSSL for iOS cross-compilation. Required by libssh2-sys -> openssl-sys.
+openssl-sys = { version = "0.9", features = ["vendored"] }
+
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
