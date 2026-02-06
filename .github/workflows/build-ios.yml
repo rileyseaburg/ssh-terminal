@@ -86,13 +86,25 @@ jobs:
           source $HOME/.cargo/env
           export PATH="/opt/homebrew/bin:$HOME/.cargo/bin:$PATH"
           export APPLE_DEVELOPMENT_TEAM="J9YRM3U37D"
-          # Disable zlib in libssh2 build
-          export LIBSSH2_SYS_USE_ZLIB=0
           if [ ! -d "gen/apple" ]; then
             cargo tauri ios init
           fi
-          # Clean and rebuild to ensure no cached zlib objects
-          cargo clean --target aarch64-apple-ios 2>/dev/null || true
+          # Patch project.yml to link against system zlib (required by libssh2/openssl)
+          if ! grep -q 'libz.tbd' gen/apple/project.yml; then
+            python3 -c "
+          import re
+          with open('gen/apple/project.yml', 'r') as f:
+              content = f.read()
+          content = content.replace(
+              '- sdk: WebKit.framework',
+              '- sdk: WebKit.framework\n      - sdk: libz.tbd'
+          )
+          with open('gen/apple/project.yml', 'w') as f:
+              f.write(content)
+          "
+            echo "Patched project.yml to include libz.tbd"
+            cd gen/apple && xcodegen generate && cd ../..
+          fi
           cargo tauri ios build --target aarch64
 
       - name: Install to iPhone
