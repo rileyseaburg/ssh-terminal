@@ -19,16 +19,28 @@ class SSHTerminalApp {
         this.loadSettings();
         this.createNewTab();
         
-        if (window.__TAURI__?.core) {
-            this.version = await window.__TAURI__.core.invoke('get_app_version');
-            document.getElementById('app-version').textContent = `v${this.version}`;
-            console.log('Tauri initialized');
-            
-            // Ensure default sessions exist on first launch
-            await this.ensureDefaultSessions();
-        } else {
-            console.warn('Tauri not available - running in demo mode');
+        try {
+            if (window.__TAURI__?.core) {
+                this.version = await window.__TAURI__.core.invoke('get_app_version');
+                document.getElementById('app-version').textContent = `v${this.version}`;
+                console.log('Tauri initialized, version:', this.version);
+                
+                // Ensure default sessions exist on first launch
+                await this.ensureDefaultSessions();
+            } else {
+                console.warn('Tauri not available - running in demo mode');
+                this.showDebug('Tauri API not found on window.__TAURI__');
+            }
+        } catch (err) {
+            console.error('Init error:', err);
+            this.showDebug('Init error: ' + String(err));
         }
+    }
+
+    showDebug(msg) {
+        // Show errors visibly on iOS where we can't see console
+        const el = document.getElementById('connection-status');
+        if (el) el.textContent = msg;
     }
 
     cacheDOMElements() {
@@ -802,10 +814,12 @@ The private key has been securely stored.
         try {
             const created = await window.__TAURI__.core.invoke('ensure_default_sessions');
             if (created) {
-                console.log('Default session created');
+                this.showDebug('Default session created');
+            } else {
+                this.showDebug('Sessions loaded OK');
             }
         } catch (error) {
-            console.warn('Default session setup skipped:', error);
+            this.showDebug('Session error: ' + String(error));
         }
     }
 
