@@ -25,6 +25,15 @@ jobs:
   build-ios:
     runs-on: [self-hosted, macOS, ios-builder]
     steps:
+      - name: Cleanup disk space
+        run: |
+          echo "Disk space before cleanup:"
+          df -h /System/Volumes/Data || df -h /
+          rm -rf ~/Library/Developer/Xcode/DerivedData/* 2>/dev/null || true
+          rm -rf ~/Library/Caches/com.apple.dt.Xcode 2>/dev/null || true
+          echo "Disk space after cleanup:"
+          df -h /System/Volumes/Data || df -h /
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
