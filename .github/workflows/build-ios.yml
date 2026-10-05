@@ -26,7 +26,7 @@ jobs:
           set -euo pipefail
           test "$(id -un)" = rileyseaburg
           cd "$RELEASE_DIR"
-          test "$(shasum -a 256 resume-export.sh | cut -d ' ' -f 1)" = 192f3638758d57344ae8b331ecac3873314f1512e0de5abdb5b037616383f0f2
+          test "$(shasum -a 256 resume-export.sh | cut -d ' ' -f 1)" = 250a53ce8925d7f2f19a12002ea1cea2d29d872d256e0ed6cc1677780db295cf
           test "$(shasum -a 256 ExportOptions-development-auto.plist | cut -d ' ' -f 1)" = 99b0d62947b072a98aa582c25c8f28ac87a9f1b4af481effb4a0cd70dc2fe9d6
           test "$(shasum -a 256 LiquidSSH.xcarchive/Products/Applications/LiquidSSH.app/LiquidSSH | cut -d ' ' -f 1)" = 25b2729f33288356395b0ccc4baae7095acf3226a38f55779f7410112272ec17
           bash -n resume-export.sh
@@ -48,14 +48,26 @@ jobs:
           set -euo pipefail
           bash "$RELEASE_DIR/resume-export.sh"
 
-      - name: Preserve recovery diagnostics
+      - name: Preserve recovery diagnostics on NAS
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: liquidssh-native-recovery-${{ github.run_id }}
-          if-no-files-found: warn
-          path: |
-            /Users/rileyseaburg/LiquidSSH-distribution/20261005T133822Z/export-development-*.log
-            /Users/rileyseaburg/LiquidSSH-distribution/20261005T133822Z/signature-*.log
-            /Users/rileyseaburg/LiquidSSH-distribution/20261005T133822Z/certificate-*.log
-            /Users/rileyseaburg/LiquidSSH-distribution/20261005T133822Z/staging-*.txt
+        shell: bash
+        run: |
+          set -euo pipefail
+          # GitHub artifact storage is full. Preserve a checksummed equivalent
+          # on the requested NAS instead of ignoring the upload failure.
+          mount | grep -F ' on /Users/rileyseaburg/NAS (smbfs' > /dev/null
+          DEST="$HOME/NAS/LiquidSSH/ci-evidence-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          mkdir "$DEST"
+          shopt -s nullglob
+          FILES=("$RELEASE_DIR"/export-development-*.log
+                 "$RELEASE_DIR"/signature-*.log
+                 "$RELEASE_DIR"/certificate-*.log
+                 "$RELEASE_DIR"/staging-*.txt)
+          test "${#FILES[@]}" -gt 0
+          for FILE in "${FILES[@]}"; do
+            cp "$FILE" "$DEST/"
+            cmp "$FILE" "$DEST/$(basename "$FILE")"
+          done
+          cd "$DEST"
+          shasum -a 256 -- *.log *.txt > SHA256SUMS
+          printf 'focused CI-like: diagnostics copied with byte-for-byte readback to %s\n' "$DEST"
