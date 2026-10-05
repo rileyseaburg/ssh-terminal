@@ -1,44 +1,30 @@
-name: LiquidSSH preserved-archive recovery
-run-name: ${{ inputs.verify_only && 'LiquidSSH read-only release audit' || 'LiquidSSH native IPA recovery' }} (20261005T133822Z)
-
-# Recovery branch only. No checkout or cleanup: native source on the runner is
-# untracked and must not be removed by actions/checkout's default clean step.
+name: LiquidSSH touch scrolling release
+run-name: LiquidSSH build 2 touch scrolling and auto-scroll
 on:
   workflow_dispatch:
-    inputs:
-      verify_only:
-        description: Read-only audit of the existing signed NAS release
-        type: boolean
-        default: true
-
 permissions:
   contents: read
-
 concurrency:
   group: liquidssh-native-signing
   cancel-in-progress: false
-
 jobs:
-  sign-preserved-native-archive:
-    if: ${{ !inputs.verify_only }}
+  sign-scroll-update:
     runs-on: [self-hosted, macOS, ios-builder]
     timeout-minutes: 10
     env:
-      RELEASE_DIR: /Users/rileyseaburg/LiquidSSH-distribution/20261005T133822Z
+      RELEASE_DIR: /Users/rileyseaburg/LiquidSSH-scroll-update/20261005-scroll-build2
     steps:
-      - name: Verify preserved artifacts before using signing access
+      - name: Verify tested source snapshot and release archive
         shell: bash
         run: |
           set -euo pipefail
-          test "$(id -un)" = rileyseaburg
           cd "$RELEASE_DIR"
-          test "$(shasum -a 256 resume-export.sh | cut -d ' ' -f 1)" = 250a53ce8925d7f2f19a12002ea1cea2d29d872d256e0ed6cc1677780db295cf
-          test "$(shasum -a 256 ExportOptions-development-auto.plist | cut -d ' ' -f 1)" = 99b0d62947b072a98aa582c25c8f28ac87a9f1b4af481effb4a0cd70dc2fe9d6
-          test "$(shasum -a 256 LiquidSSH.xcarchive/Products/Applications/LiquidSSH.app/LiquidSSH | cut -d ' ' -f 1)" = 25b2729f33288356395b0ccc4baae7095acf3226a38f55779f7410112272ec17
-          bash -n resume-export.sh
+          test "$(shasum -a 256 export-scroll.sh | cut -d ' ' -f 1)" = 70fa6d8e6290b33dbed5d95e7ff48e4e6b64493c1e3abcc8d40baf1783da9a08
+          test "$(shasum -a 256 LiquidSSH.xcarchive/Products/Applications/LiquidSSH.app/LiquidSSH | cut -d ' ' -f 1)" = 5b8705165172925d7523e14ed581f85005f656c1781a3e89000913a993aca1d3
+          grep -F '** TEST SUCCEEDED **' scroll-tests-5.log
+          grep -F '** ARCHIVE SUCCEEDED **' archive.log
           cd source
           shasum -a 256 -c ../built-source-sha256.txt
-
       - name: Unlock through the existing CI credential mechanism
         shell: bash
         env:
@@ -47,28 +33,22 @@ jobs:
           set -euo pipefail
           test -n "$KEYCHAIN_PASSWORD"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$HOME/Library/Keychains/login.keychain-db"
-
-      - name: Export and verify development IPA before NAS staging
+      - name: Export and verify signed build 2 before NAS staging
         shell: bash
         run: |
           set -euo pipefail
-          bash "$RELEASE_DIR/resume-export.sh"
-
-      - name: Preserve recovery diagnostics on NAS
+          bash "$RELEASE_DIR/export-scroll.sh"
+      - name: Preserve diagnostics on NAS
         if: always()
         shell: bash
         run: |
           set -euo pipefail
-          # GitHub artifact storage is full. Preserve a checksummed equivalent
-          # on the requested NAS instead of ignoring the upload failure.
           mount | grep -F ' on /Users/rileyseaburg/NAS (smbfs' > /dev/null
           DEST="$HOME/NAS/LiquidSSH/ci-evidence-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           mkdir "$DEST"
           shopt -s nullglob
-          FILES=("$RELEASE_DIR"/export-development-*.log
-                 "$RELEASE_DIR"/signature-*.log
-                 "$RELEASE_DIR"/certificate-*.log
-                 "$RELEASE_DIR"/staging-*.txt)
+          FILES=("$RELEASE_DIR"/export-development-*.log "$RELEASE_DIR"/signature-*.log
+                 "$RELEASE_DIR"/certificate-*.log "$RELEASE_DIR"/staging-*.txt)
           test "${#FILES[@]}" -gt 0
           for FILE in "${FILES[@]}"; do
             cp "$FILE" "$DEST/"
@@ -76,19 +56,4 @@ jobs:
           done
           cd "$DEST"
           shasum -a 256 -- *.log *.txt > SHA256SUMS
-          printf 'focused CI-like: diagnostics copied with byte-for-byte readback to %s\n' "$DEST"
-
-  audit-existing-release:
-    if: ${{ inputs.verify_only }}
-    runs-on: [self-hosted, macOS, ios-builder]
-    timeout-minutes: 5
-    steps:
-      - name: Read-only Mac checkout, NAS readback, and device-coverage audit
-        shell: bash
-        run: |
-          set -euo pipefail
-          SCRIPT="$HOME/LiquidSSH-distribution/20261005T133822Z/verify-liquidssh-release.rb"
-          # Identical to the script committed on this branch. No checkout,
-          # Keychain unlock, profile changes, or device identifiers in output.
-          test "$(shasum -a 256 "$SCRIPT" | cut -d ' ' -f 1)" = aee74c06e61674ba42c241f132dc9ccbe81ea008c49c028db4848e5d2a2806da
-          /usr/bin/ruby "$SCRIPT"
+          printf 'focused CI-like: diagnostics and byte-for-byte readback at %s\n' "$DEST"
