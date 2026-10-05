@@ -77,7 +77,7 @@ jobs:
         run: |
           set -euo pipefail
           cd "$RELEASE_DIR/source"
-          shasum -a 256 -c ../built-source-sha256.txt
+          shasum -a 256 -c ../audit-source-sha256.txt
           AUDIT="$RELEASE_DIR/ci-audit-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           mkdir "$AUDIT"
           xcrun simctl bootstatus "$SIMULATOR_ID" -b
