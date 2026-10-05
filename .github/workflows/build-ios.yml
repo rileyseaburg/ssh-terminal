@@ -1,10 +1,15 @@
 name: LiquidSSH preserved-archive recovery
-run-name: LiquidSSH native IPA recovery (20261005T133822Z)
+run-name: ${{ inputs.verify_only && 'LiquidSSH read-only release audit' || 'LiquidSSH native IPA recovery' }} (20261005T133822Z)
 
 # Recovery branch only. No checkout or cleanup: native source on the runner is
 # untracked and must not be removed by actions/checkout's default clean step.
 on:
   workflow_dispatch:
+    inputs:
+      verify_only:
+        description: Read-only audit of the existing signed NAS release
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -15,6 +20,7 @@ concurrency:
 
 jobs:
   sign-preserved-native-archive:
+    if: ${{ !inputs.verify_only }}
     runs-on: [self-hosted, macOS, ios-builder]
     timeout-minutes: 10
     env:
@@ -71,3 +77,18 @@ jobs:
           cd "$DEST"
           shasum -a 256 -- *.log *.txt > SHA256SUMS
           printf 'focused CI-like: diagnostics copied with byte-for-byte readback to %s\n' "$DEST"
+
+  audit-existing-release:
+    if: ${{ inputs.verify_only }}
+    runs-on: [self-hosted, macOS, ios-builder]
+    timeout-minutes: 5
+    steps:
+      - name: Read-only Mac checkout, NAS readback, and device-coverage audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          SCRIPT="$HOME/LiquidSSH-distribution/20261005T133822Z/verify-liquidssh-release.rb"
+          # Identical to the script committed on this branch. No checkout,
+          # Keychain unlock, profile changes, or device identifiers in output.
+          test "$(shasum -a 256 "$SCRIPT" | cut -d ' ' -f 1)" = aee74c06e61674ba42c241f132dc9ccbe81ea008c49c028db4848e5d2a2806da
+          /usr/bin/ruby "$SCRIPT"
