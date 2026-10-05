@@ -2,6 +2,11 @@ name: LiquidSSH touch scrolling release
 run-name: LiquidSSH build 2 touch scrolling and auto-scroll
 on:
   workflow_dispatch:
+    inputs:
+      audit_only:
+        description: Rerun native gesture tests and fresh public IPA download without signing
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -9,6 +14,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   sign-scroll-update:
+    if: ${{ !inputs.audit_only }}
     runs-on: [self-hosted, macOS, ios-builder]
     timeout-minutes: 10
     env:
@@ -57,3 +63,54 @@ jobs:
           cd "$DEST"
           shasum -a 256 -- *.log *.txt > SHA256SUMS
           printf 'focused CI-like: diagnostics and byte-for-byte readback at %s\n' "$DEST"
+
+  independent-native-and-https-audit:
+    if: ${{ inputs.audit_only }}
+    runs-on: [self-hosted, macOS, ios-builder]
+    timeout-minutes: 15
+    env:
+      RELEASE_DIR: /Users/rileyseaburg/LiquidSSH-scroll-update/20261005-scroll-build2
+    steps:
+      - name: Verify source snapshot and rerun native touch/follow XCUITests
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RELEASE_DIR/source"
+          shasum -a 256 -c ../built-source-sha256.txt
+          AUDIT="$RELEASE_DIR/ci-audit-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          mkdir "$AUDIT"
+          xcodebuild -project LiquidSSH.xcodeproj -scheme LiquidSSH -configuration Debug \
+            -destination 'platform=iOS Simulator,id=C2DB3AC5-293F-4CAD-95DF-13221ECD0509' \
+            -derivedDataPath "$RELEASE_DIR/SimulatorDerivedData" \
+            -clonedSourcePackagesDirPath "$HOME/actions-runner-ssh/_work/ssh-terminal/ssh-terminal/ios-native/LiquidSSH/build-sim/SourcePackages" \
+            -disableAutomaticPackageResolution -parallel-testing-enabled NO \
+            -test-timeouts-enabled YES -default-test-execution-time-allowance 90 \
+            -maximum-test-execution-time-allowance 120 \
+            -resultBundlePath "$AUDIT/scroll-tests.xcresult" \
+            -only-testing:LiquidSSHUITests/TerminalScrollingUITests \
+            -only-testing:LiquidSSHUITests/KeyboardInputUITests/test1_KeyboardButtonThenType \
+            test CODE_SIGNING_ALLOWED=NO > "$AUDIT/scroll-tests.log" 2>&1 || {
+              tail -80 "$AUDIT/scroll-tests.log"; exit 1;
+            }
+          grep -E 'Test Case .* (passed|failed)|Executed |\*\* TEST' "$AUDIT/scroll-tests.log"
+          echo "mocked local: fresh native XCUITest exit 0 in CI; no physical-phone proof"
+      - name: Fresh full public HTTPS IPA download and NAS byte comparison
+        shell: bash
+        run: |
+          set -euo pipefail
+          AUDIT="$RELEASE_DIR/ci-audit-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          URL='https://server.codetether.run/downloads/liquidssh/20261005-scroll-build2/LiquidSSH-1.0.0-build2-development.ipa'
+          EXPECTED='b18e58c81568616f0f8b77851ce63c66ae826175c8e255ea0d0d5a8af0c858e4'
+          curl --fail --location --proto '=https' --max-time 120 \
+            --dump-header "$AUDIT/https-headers.txt" --output "$AUDIT/public.ipa" "$URL"
+          test "$(shasum -a 256 "$AUDIT/public.ipa" | cut -d ' ' -f 1)" = "$EXPECTED"
+          test "$(stat -f %z "$AUDIT/public.ipa")" = 2132046
+          cmp "$AUDIT/public.ipa" "$HOME/NAS/LiquidSSH/20261005-scroll-build2/LiquidSSH-1.0.0-build2-development.ipa"
+          echo "live deployment: full HTTPS download $URL; SHA256=$EXPECTED; bytes=2132046; NAS cmp exit 0"
+          grep -iE '^HTTP/|^content-type:|^content-length:|^cf-ray:' "$AUDIT/https-headers.txt"
+          DEST="$HOME/NAS/LiquidSSH/ci-audit-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          mkdir "$DEST"
+          cp "$AUDIT/scroll-tests.log" "$AUDIT/https-headers.txt" "$DEST/"
+          cmp "$AUDIT/scroll-tests.log" "$DEST/scroll-tests.log"
+          cmp "$AUDIT/https-headers.txt" "$DEST/https-headers.txt"
+          echo "focused CI-like: audit evidence preserved at $AUDIT and $DEST"
