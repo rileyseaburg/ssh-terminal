@@ -70,6 +70,7 @@ jobs:
     timeout-minutes: 15
     env:
       RELEASE_DIR: /Users/rileyseaburg/LiquidSSH-scroll-update/20261005-scroll-build2
+      SIMULATOR_ID: C1978AA2-9297-42A7-828B-54E9930EF19F
     steps:
       - name: Verify source snapshot and rerun native touch/follow XCUITests
         shell: bash
@@ -79,8 +80,9 @@ jobs:
           shasum -a 256 -c ../built-source-sha256.txt
           AUDIT="$RELEASE_DIR/ci-audit-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           mkdir "$AUDIT"
+          xcrun simctl bootstatus "$SIMULATOR_ID" -b
           xcodebuild -project LiquidSSH.xcodeproj -scheme LiquidSSH -configuration Debug \
-            -destination 'platform=iOS Simulator,id=C2DB3AC5-293F-4CAD-95DF-13221ECD0509' \
+            -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
             -derivedDataPath "$RELEASE_DIR/SimulatorDerivedData" \
             -clonedSourcePackagesDirPath "$HOME/actions-runner-ssh/_work/ssh-terminal/ssh-terminal/ios-native/LiquidSSH/build-sim/SourcePackages" \
             -disableAutomaticPackageResolution -parallel-testing-enabled NO \
@@ -114,3 +116,8 @@ jobs:
           cmp "$AUDIT/scroll-tests.log" "$DEST/scroll-tests.log"
           cmp "$AUDIT/https-headers.txt" "$DEST/https-headers.txt"
           echo "focused CI-like: audit evidence preserved at $AUDIT and $DEST"
+      - name: Shut down only this job's dedicated simulator
+        if: always()
+        shell: bash
+        run: |
+          xcrun simctl shutdown "$SIMULATOR_ID"
